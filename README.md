@@ -23,7 +23,8 @@ nothing but Python's standard library. Your data stays in one SQLite file.
 - **Import** any monday.com board exported to Excel, including the time-tracking log,
   updates and subitems — columns are detected automatically.
 - **CSV export** of items and of the full time log. Daily database backups.
-- Light and dark mode. Works offline. Listens on `127.0.0.1` only.
+- Light and dark mode. Works offline. Listens on `127.0.0.1` only, and refuses requests
+  from other websites open in your browser (Origin / Host checks).
 
 ![Board](docs/board-dark.png)
 
@@ -105,6 +106,20 @@ for example in a cloud-synced folder. Only run one copy of the app against a dat
 ```bash
 python3 -m unittest discover -s tests
 ```
+
+To generate a local HTML coverage report, install the development dependency in a
+virtual environment, then run the coverage target. The report is written to
+`coverage-report/index.html`.
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+make coverage
+```
+
+`requirements-dev.txt` also installs openpyxl, which the importer tests need; without it
+those tests are skipped.
 
 `app.py` is the whole server (standard-library `http.server` + `sqlite3`);
 `static/index.html` is the whole front end (vanilla JS + Chart.js, vendored under its MIT licence).

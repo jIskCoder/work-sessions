@@ -8,3 +8,7 @@ config.json
 __pycache__/
 *.pyc
 .DS_Store
+coverage-report/
+.coverage
+.venv/
+.venv-coverage/

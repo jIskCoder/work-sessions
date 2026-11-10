@@ -30,6 +30,7 @@ __version__ = "1.0.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(HERE, "static")
+MAX_REQUEST_BODY = 1024 * 1024  # 1 MiB; API payloads are small JSON documents.
 
 ITEM_FIELDS = ["name", "grp", "start_date", "start_hour", "priority", "end_date",
                "end_hour", "project", "task", "status"]
@@ -170,6 +171,66 @@ def state(con, cfg):
             "config": cfg, "version": __version__}
 
 
+def static_path(name):
+    """Return a static-file path only when it is contained by STATIC."""
+    path = os.path.abspath(os.path.normpath(os.path.join(STATIC, name)))
+    try:
+        return path if os.path.commonpath((STATIC, path)) == STATIC else None
+    except ValueError:
+        return None
+
+
+def csv_cell(value):
+    """Prevent spreadsheet programs from treating exported user data as a formula."""
+    if isinstance(value, str) and value.lstrip(" \t\r\n")[:1] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
+
+
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+
+
+def local_authority(value, port):
+    """True when a Host header / Origin authority names this machine on the app's port."""
+    if not value:
+        return False
+    return value.lower() in ["%s:%d" % (h, port) for h in LOCAL_HOSTS]
+
+
+def request_rejection(method, headers, port):
+    """Why a request must be refused, or None.
+
+    The app listens on 127.0.0.1 only, but a web page open in the same browser can still
+    send requests to it. This blocks:
+      * DNS rebinding — a page on an attacker's domain re-pointed at 127.0.0.1 (Host check);
+      * cross-site requests — another site's page posting to the API (Origin and
+        Sec-Fetch-Site checks);
+      * "simple" cross-site POSTs that skip the browser's preflight (JSON content type
+        required for requests with a body).
+    Requests without Origin / Sec-Fetch-Site headers (curl, scripts, tests) are allowed.
+    """
+    if not local_authority(headers.get("Host"), port):
+        return "unexpected Host header"
+    origin = headers.get("Origin")
+    if origin is not None:
+        scheme, _, authority = origin.partition("://")
+        if scheme != "http" or not local_authority(authority, port):
+            return "cross-origin request refused"
+    if (headers.get("Sec-Fetch-Site") or "").lower() == "cross-site":
+        return "cross-site request refused"
+    if method in ("POST", "PATCH"):
+        ctype = (headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return "Content-Type must be application/json"
+    return None
+
+
+class RequestBodyError(Exception):
+    def __init__(self, code, message):
+        self.code = code
+        self.message = message
+
+
 # ---------------------------------------------------------------- HTTP
 class Handler(BaseHTTPRequestHandler):
     con = None
@@ -189,14 +250,36 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def body(self):
-        n = int(self.headers.get("Content-Length") or 0)
-        return json.loads(self.rfile.read(n) or b"{}")
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            raise RequestBodyError(400, "invalid Content-Length")
+        if n < 0:
+            raise RequestBodyError(400, "invalid Content-Length")
+        if n > MAX_REQUEST_BODY:
+            raise RequestBodyError(413, "request body too large")
+        try:
+            data = json.loads(self.rfile.read(n) or b"{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise RequestBodyError(400, "invalid JSON body")
+        if not isinstance(data, dict):
+            raise RequestBodyError(400, "JSON body must be an object")
+        return data
+
+    def refused(self, method):
+        reason = request_rejection(method, self.headers, self.server.server_address[1])
+        if reason:
+            self.send(403, {"error": reason})
+            return True
+        return False
 
     def parts(self):
         return urlparse(self.path).path.strip("/").split("/")
 
     # ---- GET
     def do_GET(self):
+        if self.refused("GET"):
+            return
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             return self.static("index.html")
@@ -228,8 +311,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, {"error": "not found"})
 
     def static(self, name):
-        fp = os.path.normpath(os.path.join(STATIC, name))
-        if not fp.startswith(STATIC) or not os.path.isfile(fp):
+        fp = static_path(name)
+        if not fp or not os.path.isfile(fp):
             return self.send(404, {"error": "not found"})
         ctype = {"html": "text/html; charset=utf-8", "js": "application/javascript",
                  "css": "text/css", "png": "image/png"}.get(fp.rsplit(".", 1)[-1], "application/octet-stream")
@@ -238,9 +321,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- POST
     def do_POST(self):
+        if self.refused("POST"):
+            return
         path = urlparse(self.path).path
         p = self.parts()
-        data = self.body()
+        try:
+            data = self.body()
+        except RequestBodyError as error:
+            return self.send(error.code, {"error": error.message})
         con, cfg = self.con, self.cfg
         with lock:
             if path == "/api/items":
@@ -309,8 +397,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- PATCH
     def do_PATCH(self):
+        if self.refused("PATCH"):
+            return
         p = self.parts()
-        data = self.body()
+        try:
+            data = self.body()
+        except RequestBodyError as error:
+            return self.send(error.code, {"error": error.message})
         con, cfg = self.con, self.cfg
         with lock:
             if len(p) == 3 and p[:2] == ["api", "items"]:
@@ -343,6 +436,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- DELETE
     def do_DELETE(self):
+        if self.refused("DELETE"):
+            return
         p = self.parts()
         con = self.con
         with lock:
@@ -363,8 +458,8 @@ class Handler(BaseHTTPRequestHandler):
     def csv_out(self, header, rows, fname):
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(header)
-        w.writerows(rows)
+        w.writerow([csv_cell(value) for value in header])
+        w.writerows([[csv_cell(value) for value in row] for row in rows])
         body = buf.getvalue().encode("utf-8-sig")
         self.send_response(200)
         self.send_header("Content-Type", "text/csv; charset=utf-8")
