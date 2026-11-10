@@ -109,6 +109,12 @@ python3 -m unittest discover -s tests
 `app.py` is the whole server (standard-library `http.server` + `sqlite3`);
 `static/index.html` is the whole front end (vanilla JS + Chart.js, vendored under its MIT licence).
 
+## Acknowledgement
+
+This project was vibe coded with [Claude](https://claude.ai) (Anthropic): the app,
+the monday.com importer, the tests and this README were written by Claude through
+conversation, then reviewed and tested on real data.
+
 ## Licence
 
 MIT. Not affiliated with or endorsed by monday.com.
