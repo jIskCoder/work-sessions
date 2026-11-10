@@ -1,0 +1,10 @@
+# personal data never goes in the repo
+data/
+*.db
+*.db-journal
+*.xlsx
+config.json
+!config.example.json
+__pycache__/
+*.pyc
+.DS_Store

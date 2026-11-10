@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Sessions</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f4f2; --surface:#fcfcfb; --surface-2:#f0efec; --line:#e2e1dc; --line-strong:#cfcdc6;
+  --text:#0b0b0b; --text-2:#52514e; --text-3:#7d7b75;
+  --accent:#2a78d6; --accent-ink:#ffffff; --focus:#2a78d6;
+  --done:#1f8a5b; --done-bg:#dff3e8; --wip:#b36b00; --wip-bg:#fdeccc; --notyet:#5f5e59; --notyet-bg:#e7e6e1;
+  --crit:#c23a3a; --crit-bg:#fbe1e1; --high:#b85a1d; --high-bg:#fde6d6; --mod:#5a4bc4; --mod-bg:#e8e5fb; --low:#5f5e59; --low-bg:#ecebe6;
+  --run:#e34948;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#9a988f;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#2e2e2b; --line-strong:#3d3d39;
+    --text:#f0efec; --text-2:#c3c2b7; --text-3:#8f8e86;
+    --accent:#3987e5; --focus:#6da7ec;
+    --done:#5fd19c; --done-bg:#163626; --wip:#f2b84b; --wip-bg:#3a2c10; --notyet:#c3c2b7; --notyet-bg:#2c2c29;
+    --crit:#f08080; --crit-bg:#3d1c1c; --high:#f0a070; --high-bg:#3b2414; --mod:#a99ff0; --mod-bg:#25213f; --low:#c3c2b7; --low-bg:#2c2c29;
+    --run:#e66767;
+    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#6f6e68;
+  }
+}
+:root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#2e2e2b; --line-strong:#3d3d39;
+    --text:#f0efec; --text-2:#c3c2b7; --text-3:#8f8e86;
+    --accent:#3987e5; --focus:#6da7ec;
+    --done:#5fd19c; --done-bg:#163626; --wip:#f2b84b; --wip-bg:#3a2c10; --notyet:#c3c2b7; --notyet-bg:#2c2c29;
+    --crit:#f08080; --crit-bg:#3d1c1c; --high:#f0a070; --high-bg:#3b2414; --mod:#a99ff0; --mod-bg:#25213f; --low:#c3c2b7; --low-bg:#2c2c29;
+    --run:#e66767;
+    --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#6f6e68;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+header.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:16px;padding:12px 20px;flex-wrap:wrap}
+h1{font-size:18px;margin:0;font-weight:650;letter-spacing:-.01em}
+.live{display:flex;gap:18px;margin-left:auto;color:var(--text-2);font-variant-numeric:tabular-nums}
+.live b{color:var(--text);font-weight:600}
+.tabs{display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+.tab{border:0;background:none;padding:9px 10px 10px;color:var(--text-2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.toolbar{display:flex;gap:8px;padding:12px 20px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:6px 11px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:3px 8px;font-size:12.5px}
+a.btn{text-decoration:none;color:var(--text);display:inline-block}
+.btn.danger{color:var(--crit)}
+input.search,select.filter{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:6px 9px}
+input.search{width:220px}
+main{padding:0 20px 60px}
+.group{margin:14px 0 22px}
+.ghead{display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;user-select:none}
+.ghead .chev{width:14px;color:var(--text-3);transition:transform .15s}
+.ghead[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.ghead h2{margin:0;font-size:15px;font-weight:650}
+.ghead .meta{color:var(--text-3);font-size:12.5px;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table.grid{border-collapse:collapse;width:100%;min-width:1500px}
+.grid th{position:sticky;top:0;background:var(--surface-2);font-weight:600;font-size:12px;color:var(--text-2);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.grid td{border-bottom:1px solid var(--line);padding:0 4px;height:36px;vertical-align:middle}
+.grid tr:last-child td{border-bottom:0}
+.grid tr:hover td{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+.grid input,.grid select{border:1px solid transparent;background:transparent;border-radius:5px;padding:4px 6px;width:100%}
+.grid input:hover,.grid select:hover{border-color:var(--line-strong)}
+.grid input:focus,.grid select:focus{border-color:var(--focus);background:var(--surface);outline:none}
+.grid input[type=date]{width:138px}.grid input[type=time]{width:112px}
+.grid select.pill{width:118px}
+.c-timer{width:118px}.c-name{min-width:260px}.c-more{width:44px;text-align:center}
+.timer{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--text-2)}
+.play{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;display:grid;place-items:center;flex:none}
+.play svg{width:11px;height:11px;fill:var(--text-2)}
+.play.running{background:var(--run);border-color:var(--run)}
+.play.running svg{fill:#fff}
+.timer.running span{color:var(--run);font-weight:600}
+select.pill{appearance:none;-webkit-appearance:none;text-align:center;font-weight:550;font-size:12.5px;border-radius:999px!important;padding:3px 10px!important}
+.t-success{color:var(--done);background:var(--done-bg)!important}
+.t-warning{color:var(--wip);background:var(--wip-bg)!important}
+.t-neutral{color:var(--notyet);background:var(--notyet-bg)!important}
+.t-critical{color:var(--crit);background:var(--crit-bg)!important}
+.t-high{color:var(--high);background:var(--high-bg)!important}
+.t-moderate{color:var(--mod);background:var(--mod-bg)!important}
+.t-low{color:var(--low);background:var(--low-bg)!important}
+.extra{display:grid;grid-template-columns:minmax(0,40%) 1fr;gap:4px 10px;font-size:13px}.extra dt{color:var(--text-3)}.extra dd{margin:0;word-break:break-word}
+.more{border:0;background:none;cursor:pointer;color:var(--text-3);padding:4px 8px;border-radius:5px;font-size:16px;line-height:1}
+.more:hover{background:var(--surface-2);color:var(--text)}
+.badge{display:inline-block;min-width:16px;padding:0 4px;border-radius:8px;background:var(--surface-2);color:var(--text-2);font-size:11px;margin-left:2px}
+.showmore{margin:8px 0 0}
+.empty{color:var(--text-3);padding:30px 4px}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:40}
+aside.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:50;display:flex;flex-direction:column;box-shadow:-8px 0 24px rgba(0,0,0,.12)}
+.dhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dhead h3{margin:0;font-size:16px;flex:1}
+.dbody{padding:14px 18px;overflow:auto;flex:1}
+.dbody h4{margin:18px 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 58px 24px;gap:6px;align-items:center;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.srow input,.addrow input,textarea{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:4px 6px;width:100%}
+.addrow{display:flex;gap:6px;margin-top:6px}.addrow input{min-width:0}
+.note{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+.note small{display:block;color:var(--text-3);margin-bottom:4px}
+.x{border:0;background:none;color:var(--text-3);cursor:pointer;font-size:16px}
+.x:hover{color:var(--crit)}
+/* dashboard */
+.dash{padding-top:14px}
+.dashbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 11px;cursor:pointer;color:var(--text-2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.hint{color:var(--text-3);font-size:12.5px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile .k{font-size:12.5px;color:var(--text-2)}
+.tile .v{font-size:26px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .s{font-size:12px;color:var(--text-3)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h3{margin:0 0 2px;font-size:14px;font-weight:620}
+.card .sub{font-size:12px;color:var(--text-3);margin-bottom:8px}
+.donutwrap{position:relative;height:200px}
+.legend{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:3px;font-size:12.5px}
+.legend li{display:flex;align-items:center;gap:8px;color:var(--text-2)}
+.legend i{width:10px;height:10px;border-radius:3px;flex:none}
+.legend b{margin-left:auto;color:var(--text);font-weight:550;font-variant-numeric:tabular-nums}
+.barwrap{position:relative;height:300px}
+.wide{grid-column:1/-1}
+table.sum{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13px}
+.sum th,.sum td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+.sum th:first-child,.sum td:first-child{text-align:left}
+.sum th{color:var(--text-2);font-weight:600;font-size:12px}
+.sum td i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:8px 14px;border-radius:8px;z-index:60;font-size:13px}
+@media (max-width:700px){.bar,.toolbar,main{padding-left:16px;padding-right:16px}.live{margin-left:0}input.search{width:100%}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <h1 id="appTitle">Work Sessions</h1>
+    <div class="live" aria-live="off">
+      <span>Today <b id="liveToday">0h 0m</b></span>
+      <span>This week <b id="liveWeek">0h 0m</b></span>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <button class="btn primary" id="newItem">+ New item</button>
+  <input class="search" id="q" type="search" placeholder="Search items, projects, tasks">
+  <select class="filter" id="fStatus" aria-label="Status filter"><option value="">All statuses</option></select>
+  <select class="filter" id="fProject" aria-label="Project filter"><option value="">All projects</option></select>
+  <label class="hint"><input type="checkbox" id="hideDone"> Hide Done group</label>
+  <span style="flex:1"></span>
+  <button class="btn small" id="addGroup">+ Group</button>
+  <a class="btn small" href="/api/export/items.csv">Export items CSV</a>
+  <a class="btn small" href="/api/export/sessions.csv">Export time log CSV</a>
+</div>
+
+<main id="main"></main>
+
+<datalist id="dlProjects"></datalist>
+<datalist id="dlTasks"></datalist>
+<datalist id="dlGroups"></datalist>
+
+<script src="/static/chart.umd.js"></script>
+<script>
+"use strict";
+const VIEWS=[
+  {id:'main',label:'Main table'},
+  {id:'today',label:'Today'},
+  {id:'thisweek',label:'This week'},
+  {id:'lastweek',label:'Last week'},
+  {id:'nextweek',label:'Next week'},
+  {id:'lastmonth',label:'Last month'},
+  {id:'bytask',label:'By task'},
+  {id:'dash',label:'Report'}
+];
+let CFG={}, STATUSES=[], PRIORITIES=[], TONE={};
+const L=k=>(CFG.labels&&CFG.labels[k])||k;
+const PAGE=40;
+let S={items:[],sessions:[],groups:[]};
+let view='main', basis=null, expanded={}, shown={}, charts=[];
+try{view=localStorage.getItem('ws.view')||'main';basis=localStorage.getItem('ws.basis');expanded=JSON.parse(localStorage.getItem('ws.expanded')||'{}')}catch(e){}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(method,url,body){
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  if(!r.ok){toast('Could not save — is the app still running?');throw new Error(r.status)}
+  return r.json();
+}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+
+/* ---------- dates ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const isoLocal=d=>`${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+const parseL=s=>{const [a,b='00:00:00']=s.split('T');const [y,m,d]=a.split('-').map(Number);const [h,mi,se]=b.split(':').map(Number);return new Date(y,m-1,d,h||0,mi||0,se||0)};
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function weekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const k=CFG.week_starts==='sunday'?x.getDay():(x.getDay()+6)%7;return addDays(x,-k)}
+function ranges(){
+  const t=new Date(),today=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+  const wk=weekStart(today);
+  const mS=new Date(today.getFullYear(),today.getMonth(),1), mE=new Date(today.getFullYear(),today.getMonth()+1,0);
+  const lmS=new Date(today.getFullYear(),today.getMonth()-1,1), lmE=new Date(today.getFullYear(),today.getMonth(),0);
+  return {
+    today:[ymd(today),ymd(today)],
+    thisweek:[ymd(wk),ymd(addDays(wk,6))],
+    lastweek:[ymd(addDays(wk,-7)),ymd(addDays(wk,-1))],
+    nextweek:[ymd(addDays(wk,7)),ymd(addDays(wk,13))],
+    thismonth:[ymd(mS),ymd(mE)],
+    lastmonth:[ymd(lmS),ymd(lmE)]
+  };
+}
+const fmtDay=s=>{const d=parseL(s);return d.toLocaleDateString(undefined,{day:'numeric',month:'short'})};
+function fmtHM(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return `${h}h ${m}m`}
+function fmtHMS(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return `${pad(h)}:${pad(m)}:${pad(s)}`}
+
+/* ---------- derived ---------- */
+let byItem=new Map(), running=new Set();
+function index(){
+  byItem=new Map();running=new Set();
+  for(const s of S.sessions){(byItem.get(s.item_id)||byItem.set(s.item_id,[]).get(s.item_id)).push(s);if(!s.end)running.add(s.item_id)}
+}
+function sessSecs(s,nowD){return ((s.end?parseL(s.end):nowD)-parseL(s.start))/1000}
+function tracked(it,nowD=new Date()){let t=it.tracked_offset||0;for(const s of byItem.get(it.id)||[])t+=sessSecs(s,nowD);return t}
+function loggedBetween(a,b,nowD=new Date()){let t=0;for(const s of S.sessions){const d=s.start.slice(0,10);if(d>=a&&d<=b)t+=sessSecs(s,nowD)}return t}
+
+/* fixed colour per project: slot by all-time hours, 8th slot = Other */
+let projColor={};
+function assignColors(){
+  const tot={};for(const it of S.items){const p=it.project||'(No project)';tot[p]=(tot[p]||0)+tracked(it)}
+  const order=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
+  projColor={};order.forEach((p,i)=>projColor[p]=i<7?`--s${i+1}`:'--s8');
+}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const colorOf=p=>css(projColor[p]||'--s8');
+const isOther=p=>(projColor[p]||'--s8')==='--s8';
+
+/* ---------- render: tabs ---------- */
+function renderTabs(){
+  $('#tabs').innerHTML=VIEWS.map(v=>`<button class="tab" role="tab" aria-selected="${v.id===view}" data-v="${v.id}">${v.label}</button>`).join('');
+  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{view=b.dataset.v;try{localStorage.setItem('ws.view',view)}catch(e){};render()});
+}
+function fillLists(){
+  const P=new Set(),T=new Set();for(const it of S.items){if(it.project)P.add(it.project);if(it.task)T.add(it.task)}
+  $('#dlProjects').innerHTML=[...P].sort().map(p=>`<option value="${esc(p)}">`).join('');
+  $('#dlTasks').innerHTML=[...T].sort().map(p=>`<option value="${esc(p)}">`).join('');
+  $('#dlGroups').innerHTML=S.groups.map(p=>`<option value="${esc(p)}">`).join('');
+  const cur=$('#fProject').value;
+  $('#fProject').innerHTML='<option value="">'+esc(L('project'))+': all</option>'+[...P].sort().map(p=>`<option ${p===cur?'selected':''}>${esc(p)}</option>`).join('');
+}
+
+/* ---------- render: table ---------- */
+function filtered(){
+  const q=$('#q').value.trim().toLowerCase(), st=$('#fStatus').value, pr=$('#fProject').value, hide=$('#hideDone').checked;
+  const R=ranges(); const rng=R[view];
+  return S.items.filter(it=>{
+    if(q&&!(`${it.name} ${it.project||''} ${it.task||''} ${it.grp||''}`.toLowerCase().includes(q)))return false;
+    if(st&&it.status!==st)return false;
+    if(pr&&it.project!==pr)return false;
+    if(hide&&(it.grp===CFG.done_status||it.grp==='Done'))return false;
+    if(rng){
+      if(view==='today'){ // the default group plus anything started or timed today
+        const d=it.start_date;const timed=(byItem.get(it.id)||[]).some(s=>s.start.slice(0,10)===rng[0]);
+        return it.grp===CFG.default_group||d===rng[0]||timed||running.has(it.id);
+      }
+      return it.start_date&&it.start_date>=rng[0]&&it.start_date<=rng[1];
+    }
+    return true;
+  });
+}
+function opt(list,val){return list.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('')+(val&&!list.includes(val)?`<option selected>${esc(val)}</option>`:'')}
+const stClass=s=>s&&TONE['s:'+s]?'t-'+TONE['s:'+s]:'';
+const prClass=p=>p&&TONE['p:'+p]?'t-'+TONE['p:'+p]:'';
+function rowHTML(it){
+  const run=running.has(it.id);
+  return `<tr data-id="${esc(it.id)}">
+   <td class="c-timer"><div class="timer ${run?'running':''}"><button class="play ${run?'running':''}" data-act="${run?'stop':'start'}" aria-label="${run?'Stop timer':'Start timer'}">${run?'<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>':'<svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>'}</button><span data-tt>${fmtHMS(tracked(it))}</span></div></td>
+   <td class="c-name"><input data-f="name" value="${esc(it.name)}" aria-label="Item name"></td>
+   <td><input data-f="grp" list="dlGroups" value="${esc(it.grp)}" aria-label="Group" style="width:140px"></td>
+   <td><input type="date" data-f="start_date" value="${esc(it.start_date||'')}" aria-label="Start date"></td>
+   <td><input type="time" data-f="start_hour" value="${esc(it.start_hour||'')}" aria-label="Start hour"></td>
+   <td><select class="pill ${prClass(it.priority)}" data-f="priority" aria-label="Priority"><option value=""></option>${opt(PRIORITIES,it.priority)}</select></td>
+   <td><input type="date" data-f="end_date" value="${esc(it.end_date||'')}" aria-label="End date"></td>
+   <td><input type="time" data-f="end_hour" value="${esc(it.end_hour||'')}" aria-label="End hour"></td>
+   <td><input data-f="project" list="dlProjects" value="${esc(it.project||'')}" aria-label="${esc(L('project'))}" style="min-width:170px"></td>
+   <td><input data-f="task" list="dlTasks" value="${esc(it.task||'')}" aria-label="${esc(L('task'))}" style="min-width:170px"></td>
+   <td><select class="pill ${stClass(it.status)}" data-f="status" aria-label="Status"><option value=""></option>${opt(STATUSES,it.status)}</select></td>
+   <td class="c-more"><button class="more" data-act="open" aria-label="Details, time log and notes">⋯${it.notes?`<span class="badge">${it.notes}</span>`:''}</button></td>
+  </tr>`;
+}
+function renderTable(){
+  const items=filtered();
+  const groupKey=view==='bytask'?(it=>it.task||'(No task)'):(it=>it.grp||'(No group)');
+  const map=new Map();
+  if(view!=='bytask')for(const g of S.groups)map.set(g,[]);
+  for(const it of items){const k=groupKey(it);(map.get(k)||map.set(k,[]).get(k)).push(it)}
+  let keys=[...map.keys()].filter(k=>map.get(k).length);
+  if(view==='bytask')keys.sort((a,b)=>map.get(b).length-map.get(a).length);
+  const period=['today','thisweek','lastweek','nextweek','lastmonth'].includes(view);
+  if(period)for(const k of keys)map.get(k).sort((a,b)=>(b.start_date||'').localeCompare(a.start_date||'')||(b.start_hour||'').localeCompare(a.start_hour||''));
+  if(!keys.length){$('#main').innerHTML='<p class="empty">No items match. Try clearing the search or filters.</p>';return}
+  const now=new Date();
+  $('#main').innerHTML=keys.map((k,gi)=>{
+    const list=map.get(k), key=view+'|'+k;
+    const open=expanded[key]??(period||view==='bytask'?gi<6:(k===CFG.default_group||gi===0));
+    const n=shown[key]||PAGE; const tot=list.reduce((a,it)=>a+tracked(it,now),0);
+    return `<section class="group" data-key="${esc(key)}">
+      <div class="ghead" role="button" tabindex="0" aria-expanded="${open}"><svg class="chev" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><h2>${esc(k)}</h2><span class="meta">${list.length} items · ${fmtHM(tot)} tracked</span></div>
+      ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th>Time tracking</th><th>Item</th><th>Group</th><th>Start date</th><th>Start hour</th><th>Priority</th><th>End date</th><th>End hour</th><th>${esc(L('project'))}</th><th>${esc(L('task'))}</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.slice(0,n).map(rowHTML).join('')}</tbody></table></div>
+      ${list.length>n?`<button class="btn small showmore" data-more="${esc(key)}">Show ${Math.min(PAGE*5,list.length-n)} more of ${list.length-n}</button>`:''}`:''}
+    </section>`}).join('');
+}
+
+/* ---------- render: dashboard ---------- */
+function sumBy(a,b){ // {project: secs}
+  const out={},nowD=new Date();
+  if(basis==='start'){for(const it of S.items){const d=it.start_date;if(d&&d>=a&&d<=b){const p=it.project||'(No project)';out[p]=(out[p]||0)+tracked(it,nowD)}}}
+  else{const proj=new Map(S.items.map(i=>[i.id,i.project||'(No project)']));for(const s of S.sessions){const d=s.start.slice(0,10);if(d>=a&&d<=b){const p=proj.get(s.item_id)||'(No project)';out[p]=(out[p]||0)+sessSecs(s,nowD)}}}
+  return out;
+}
+function foldOther(o){const r={};for(const [p,v] of Object.entries(o)){const k=isOther(p)?'Other':p;r[k]=(r[k]||0)+v}return r}
+function colorKey(k){return k==='Other'?css('--s8'):colorOf(k)}
+function renderDash(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const R=ranges();
+  const tiles=[['Today','today'],['This week','thisweek'],['Last week','lastweek'],['This month','thismonth'],['Last month','lastmonth']];
+  const pies=[['This week','thisweek'],['Last week','lastweek'],['This month','thismonth'],['Last month','lastmonth']];
+  const yr=new Date().getFullYear();
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fromM=Math.min(11,Math.max(0,(CFG.history_year_from_month||1)-1));
+  $('#main').innerHTML=`<div class="dash">
+   <div class="dashbar"><span class="hint">Count hours by</span>
+     <div class="seg" role="group" aria-label="How hours are counted">
+       <button data-b="start" aria-pressed="${basis==='start'}">Task start date</button>
+       <button data-b="logged" aria-pressed="${basis==='logged'}">When time was logged</button></div>
+     <span class="hint">${basis==='start'?'A task’s whole tracked time counts in the period its start date falls in — the same rule monday.com dashboards use.':'Each timer session counts on the day it was recorded — more accurate for long-running tasks.'}</span></div>
+   <div class="tiles">${tiles.map(([l,k])=>`<div class="tile"><div class="k">${l}</div><div class="v">${(loggedBetween(...R[k])/3600).toFixed(1)}h</div><div class="s">${fmtDay(R[k][0])}${R[k][0]!==R[k][1]?' – '+fmtDay(R[k][1]):''} · time logged</div></div>`).join('')}</div>
+   <div class="cards">${pies.map(([l,k],i)=>`<div class="card"><h3>Hours by ${esc(L('project').toLowerCase())} · ${l}</h3><div class="sub">${fmtDay(R[k][0])} – ${fmtDay(R[k][1])}</div><div class="donutwrap"><canvas id="pie${i}" role="img" aria-label="Hours by project, ${l}"></canvas></div><ul class="legend" id="lg${i}"></ul></div>`).join('')}</div>
+   <div class="cards">
+     <div class="card wide"><h3>Hours spent ${yr}</h3><div class="sub">By month, stacked by ${esc(L('project').toLowerCase())}</div><div class="barwrap"><canvas id="bar0" role="img" aria-label="Hours by month ${yr}"></canvas></div></div>
+     <div class="card wide"><h3>Hours spent ${yr-1}${fromM>0?' (from '+months[fromM]+')':''}</h3><div class="sub">By month, stacked by ${esc(L('project').toLowerCase())}</div><div class="barwrap"><canvas id="bar1" role="img" aria-label="Hours by month ${yr-1}"></canvas></div></div>
+     <div class="card wide"><h3>Table view</h3><div class="sub">Hours by ${esc(L('project').toLowerCase())} for each period</div><div style="overflow-x:auto" id="sumtbl"></div></div>
+   </div></div>`;
+  $('#main').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{basis=b.dataset.b;try{localStorage.setItem('ws.basis',basis)}catch(e){};renderDash()});
+  const text=css('--text-2'),grid=css('--line'),surface=css('--surface');
+  Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;Chart.defaults.color=text;
+  const tip={backgroundColor:css('--text'),titleColor:surface,bodyColor:surface,padding:8,cornerRadius:6,displayColors:true,boxPadding:4};
+  const per={};
+  pies.forEach(([l,k],i)=>{
+    const raw=sumBy(...R[k]);per[k]=raw;
+    const data=Object.entries(foldOther(raw)).sort((a,b)=>b[1]-a[1]).filter(e=>e[1]>0);
+    const total=data.reduce((a,e)=>a+e[1],0);
+    $('#lg'+i).innerHTML=data.length?data.map(([p,v])=>`<li><i style="background:${colorKey(p)}"></i>${esc(p)}<b>${(v/3600).toFixed(2)}</b></li>`).join('')+`<li style="border-top:1px solid var(--line);padding-top:3px"><span>Total</span><b>${(total/3600).toFixed(2)}</b></li>`:'<li>No time in this period</li>';
+    if(!data.length)return;
+    charts.push(new Chart($('#pie'+i),{type:'doughnut',data:{labels:data.map(e=>e[0]),datasets:[{data:data.map(e=>+(e[1]/3600).toFixed(2)),backgroundColor:data.map(e=>colorKey(e[0])),borderColor:surface,borderWidth:2,hoverOffset:4}]},
+      options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>` ${c.label}: ${c.parsed.toFixed(2)} h (${Math.round(c.parsed/(total/3600)*100)}%)`}}}}}));
+  });
+  [[yr,0],[yr-1,fromM]].forEach(([y,from],bi)=>{
+    const ms=months.slice(from), byP={};
+    ms.forEach((m,j)=>{const mi=from+j;const a=`${y}-${pad(mi+1)}-01`,b=ymd(new Date(y,mi+1,0));
+      for(const [p,v] of Object.entries(foldOther(sumBy(a,b)))){(byP[p]=byP[p]||Array(ms.length).fill(0))[j]=+(v/3600).toFixed(2)}});
+    const order=Object.keys(byP).sort((a,b)=>b==='Other'?-1:a==='Other'?1:byP[b].reduce((x,y)=>x+y,0)-byP[a].reduce((x,y)=>x+y,0));
+    charts.push(new Chart($('#bar'+bi),{type:'bar',data:{labels:ms,datasets:order.map(p=>({label:p,data:byP[p],backgroundColor:colorKey(p),borderColor:surface,borderWidth:{top:2},borderRadius:0,maxBarThickness:42}))},
+      options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{stacked:true,grid:{display:false},border:{color:grid}},y:{stacked:true,grid:{color:grid},border:{display:false},title:{display:true,text:'Hours'}}},
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10,useBorderRadius:true,borderRadius:2}},tooltip:{...tip,itemSort:(a,b)=>b.parsed.y-a.parsed.y,filter:c=>c.parsed.y>0,callbacks:{footer:cs=>'Total: '+cs.reduce((a,c)=>a+c.parsed.y,0).toFixed(1)+' h'}}}}}));
+  });
+  const allP=[...new Set(pies.flatMap(([,k])=>Object.keys(per[k])))].sort((a,b)=>(per.thismonth[b]||0)+(per.lastmonth[b]||0)-(per.thismonth[a]||0)-(per.lastmonth[a]||0));
+  $('#sumtbl').innerHTML=`<table class="sum"><thead><tr><th>${esc(L('project'))}</th>${pies.map(([l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${allP.map(p=>`<tr><td><i style="background:${colorOf(p)}"></i>${esc(p)}</td>${pies.map(([,k])=>`<td>${per[k][p]?(per[k][p]/3600).toFixed(2):'–'}</td>`).join('')}</tr>`).join('')}
+   <tr><td><b>Total</b></td>${pies.map(([,k])=>`<td><b>${(Object.values(per[k]).reduce((a,b)=>a+b,0)/3600).toFixed(2)}</b></td>`).join('')}</tr></tbody></table>`;
+}
+
+/* ---------- drawer ---------- */
+async function openDrawer(id){
+  const d=await api('GET',`/api/items/${encodeURIComponent(id)}/detail`);
+  closeDrawer();
+  const it=d.item, nowD=new Date();
+  const sc=document.createElement('div');sc.className='scrim';sc.onclick=closeDrawer;
+  const dr=document.createElement('aside');dr.className='drawer';dr.setAttribute('role','dialog');dr.setAttribute('aria-label','Item details');
+  const dl=s=>s?s.slice(0,16):'';
+  dr.innerHTML=`<div class="dhead"><h3>${esc(it.name)}</h3><button class="x" aria-label="Close" data-close>✕</button></div>
+   <div class="dbody">
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-dup>Duplicate</button><button class="btn small danger" data-del>Delete item…</button></div>
+    <h4>Time log · ${fmtHMS(tracked(it,nowD))} total${it.tracked_offset?` <span style="text-transform:none;letter-spacing:0">(incl. ${fmtHM(it.tracked_offset)} carried over from the import)</span>`:''}</h4>
+    ${d.sessions.map(s=>`<div class="srow" data-sid="${s.id}"><input type="datetime-local" data-k="start" value="${dl(s.start)}" aria-label="Session start"><input type="datetime-local" data-k="end" value="${dl(s.end)}" aria-label="Session end"><span>${s.end?fmtHM(sessSecs(s,nowD)):'running'}</span><button class="x" data-sdel aria-label="Delete session">✕</button></div>`).join('')||'<p class="hint">No sessions yet.</p>'}
+    <div class="addrow"><input type="datetime-local" id="ns" aria-label="New session start"><input type="datetime-local" id="ne" aria-label="New session end"><button class="btn small" data-sadd>Add</button></div>
+    ${it.extra&&Object.keys(it.extra).length?`<h4>Other fields (imported)</h4><dl class="extra">${Object.entries(it.extra).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`:''}
+    <h4>Subitems</h4>
+    ${d.subitems.map(s=>`<div class="addrow" data-sub="${esc(s.id)}"><input data-k="name" value="${esc(s.name)}" aria-label="Subitem"><select class="filter" data-k="status" aria-label="Subitem status"><option value=""></option>${opt(STATUSES,s.status)}</select><button class="x" data-subdel aria-label="Delete subitem">✕</button></div>`).join('')||'<p class="hint">None.</p>'}
+    <div class="addrow"><input id="nsub" placeholder="Add a subitem"><button class="btn small" data-subadd>Add</button></div>
+    <h4>Notes</h4>
+    <textarea id="nn" rows="3" placeholder="Write an update… (links, decisions, next steps)"></textarea>
+    <div style="margin:6px 0 12px"><button class="btn small primary" data-nadd>Add note</button></div>
+    ${d.notes.map(n=>`<div class="note"><small>${n.created?parseL(n.created).toLocaleString():''}</small>${esc(n.body)}</div>`).join('')}
+   </div>`;
+  document.body.append(sc,dr);
+  const reload=async()=>{await load(false);openDrawer(id)};
+  dr.querySelector('[data-close]').onclick=closeDrawer;
+  dr.querySelector('[data-dup]').onclick=async()=>{await api('POST',`/api/items/${encodeURIComponent(id)}/duplicate`);closeDrawer();await load();toast('Duplicated')};
+  dr.querySelector('[data-del]').onclick=async()=>{if(!confirm(`Delete “${it.name}” and its time log? This can’t be undone (a daily backup is kept in the backups folder).`))return;await api('DELETE',`/api/items/${encodeURIComponent(id)}`);closeDrawer();await load()};
+  dr.querySelectorAll('.srow input').forEach(inp=>inp.onchange=async()=>{const sid=inp.closest('.srow').dataset.sid;await api('PATCH',`/api/sessions/${sid}`,{[inp.dataset.k]:inp.value?inp.value+':00':null});reload()});
+  dr.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this session?'))return;await api('DELETE',`/api/sessions/${b.closest('.srow').dataset.sid}`);reload()});
+  dr.querySelector('[data-sadd]').onclick=async()=>{const s=$('#ns').value,e=$('#ne').value;if(!s||!e)return toast('Enter a start and end');await api('POST',`/api/items/${encodeURIComponent(id)}/sessions`,{start:s+':00',end:e+':00'});reload()};
+  dr.querySelectorAll('[data-sub] [data-k]').forEach(inp=>inp.onchange=()=>api('PATCH',`/api/subitems/${encodeURIComponent(inp.closest('[data-sub]').dataset.sub)}`,{[inp.dataset.k]:inp.value}));
+  dr.querySelectorAll('[data-subdel]').forEach(b=>b.onclick=async()=>{await api('DELETE',`/api/subitems/${encodeURIComponent(b.closest('[data-sub]').dataset.sub)}`);reload()});
+  dr.querySelector('[data-subadd]').onclick=async()=>{const v=$('#nsub').value.trim();if(!v)return;await api('POST',`/api/items/${encodeURIComponent(id)}/subitems`,{name:v});reload()};
+  dr.querySelector('[data-nadd]').onclick=async()=>{const v=$('#nn').value.trim();if(!v)return;await api('POST',`/api/items/${encodeURIComponent(id)}/notes`,{body:v});reload()};
+  document.addEventListener('keydown',escClose);
+}
+function escClose(e){if(e.key==='Escape')closeDrawer()}
+function closeDrawer(){document.querySelectorAll('.scrim,aside.drawer').forEach(n=>n.remove());document.removeEventListener('keydown',escClose)}
+
+/* ---------- events ---------- */
+$('#main').addEventListener('click',async e=>{
+  const gh=e.target.closest('.ghead');
+  if(gh){const key=gh.parentElement.dataset.key;expanded[key]=gh.getAttribute('aria-expanded')!=='true';try{localStorage.setItem('ws.expanded',JSON.stringify(expanded))}catch(_){};renderTable();return}
+  const more=e.target.closest('[data-more]');if(more){shown[more.dataset.more]=(shown[more.dataset.more]||PAGE)+PAGE*5;renderTable();return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const id=b.closest('tr').dataset.id;
+  if(b.dataset.act==='open')return openDrawer(id);
+  await api('POST',`/api/items/${encodeURIComponent(id)}/${b.dataset.act}`);await load(false);render();
+});
+$('#main').addEventListener('keydown',e=>{const gh=e.target.closest('.ghead');if(gh&&(e.key==='Enter'||e.key===' ')){e.preventDefault();gh.click()}});
+$('#main').addEventListener('change',async e=>{
+  const f=e.target.dataset.f;if(!f)return;
+  const tr=e.target.closest('tr'),id=tr.dataset.id;
+  const val=e.target.value===''?null:e.target.value;
+  const upd=await api('PATCH',`/api/items/${encodeURIComponent(id)}`,{[f]:val});
+  const i=S.items.findIndex(x=>x.id===id);if(i>=0)Object.assign(S.items[i],upd);
+  if(f==='status'||f==='priority')e.target.className='pill '+(f==='status'?stClass(val):prClass(val));
+  if(f==='status'&&val===CFG.done_status){await load(false);render()}
+  if(f==='grp'||f==='project'||f==='task'){await load(false);fillLists()}
+});
+$('#newItem').onclick=async()=>{const grp=CFG.default_group;const it=await api('POST','/api/items',{name:'New item',grp});
+  if(view!=='main'&&view!=='today'){view='today'}expanded[view+'|'+grp]=true;$('#q').value='';$('#fStatus').value='';$('#fProject').value='';await load();
+  const inp=document.querySelector(`tr[data-id="${CSS.escape(it.id)}"] input[data-f=name]`);
+  if(inp){inp.scrollIntoView({block:'center'});inp.focus();inp.select()}};
+$('#addGroup').onclick=async()=>{const n=prompt('New group name');if(n){await api('POST','/api/groups',{name:n});await load()}};
+let qT;$('#q').oninput=()=>{clearTimeout(qT);qT=setTimeout(render,180)};
+['#fStatus','#fProject','#hideDone'].forEach(s=>$(s).onchange=render);
+
+/* ---------- live clock ---------- */
+setInterval(()=>{
+  const nowD=new Date(),R=ranges();
+  $('#liveToday').textContent=fmtHM(loggedBetween(...R.today,nowD));
+  $('#liveWeek').textContent=fmtHM(loggedBetween(...R.thisweek,nowD));
+  if(!running.size)return;
+  document.querySelectorAll('tr').forEach(tr=>{if(running.has(tr.dataset.id)){const it=S.items.find(x=>x.id===tr.dataset.id);if(it)tr.querySelector('[data-tt]').textContent=fmtHMS(tracked(it,nowD))}});
+},1000);
+
+/* ---------- boot ---------- */
+function render(){
+  renderTabs();
+  $('#toolbar').style.display=view==='dash'?'none':'';
+  if(view==='dash')renderDash();else{charts.forEach(c=>c.destroy());charts=[];renderTable()}
+}
+async function load(doRender=true){
+  S=await api('GET','/api/state');CFG=S.config;
+  STATUSES=CFG.statuses.map(x=>x.name);PRIORITIES=CFG.priorities.map(x=>x.name);TONE={};
+  CFG.statuses.forEach(x=>TONE['s:'+x.name]=x.tone);CFG.priorities.forEach(x=>TONE['p:'+x.name]=x.tone);
+  if(!basis)basis=CFG.report_basis||'start';
+  document.title=CFG.title;$('#appTitle').textContent=CFG.title;
+  {const cur=$('#fStatus').value;$('#fStatus').innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')}
+  $('#q').placeholder=`Search items, ${L('project').toLowerCase()}, ${L('task').toLowerCase()}`;
+  index();assignColors();fillLists();
+  if(doRender)render();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(view==='dash')renderDash()});
+load();
+</script>
+</body>
+</html>

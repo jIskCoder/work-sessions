@@ -1,0 +1,54 @@
+{
+  "title": "Work Sessions",
+  "port": 8765,
+  "week_starts": "monday",
+  "labels": {
+    "project": "Project",
+    "task": "Task"
+  },
+  "groups": [
+    "To do today",
+    "Tasks",
+    "Meetings",
+    "Done"
+  ],
+  "default_group": "To do today",
+  "statuses": [
+    {
+      "name": "Not started",
+      "tone": "neutral"
+    },
+    {
+      "name": "Working on it",
+      "tone": "warning"
+    },
+    {
+      "name": "Done",
+      "tone": "success"
+    }
+  ],
+  "default_status": "Not started",
+  "start_status": "Working on it",
+  "done_status": "Done",
+  "priorities": [
+    {
+      "name": "Critical",
+      "tone": "critical"
+    },
+    {
+      "name": "High",
+      "tone": "high"
+    },
+    {
+      "name": "Medium",
+      "tone": "moderate"
+    },
+    {
+      "name": "Low",
+      "tone": "low"
+    }
+  ],
+  "default_priority": "Low",
+  "report_basis": "start",
+  "history_year_from_month": 1
+}
