@@ -42,6 +42,24 @@ python3 app.py               # start your own (empty) board
 On macOS you can also double-click **`Start Work Sessions.command`**
 (the first time, right-click → Open to get past Gatekeeper).
 
+### Dock icon (macOS)
+
+Build a real app with its own icon that you can keep in the Dock:
+
+```bash
+./macos/make-mac-app.sh          # creates ~/Applications/Work Sessions.app
+```
+
+To pin it, open `~/Applications` in Finder (**Go → Go to Folder…** → `~/Applications`) and
+drag **Work Sessions** onto the Dock. (It has no running Dock icon to right-click: it opens
+the browser and quits straight away, leaving the server running in the background.)
+Clicking it starts the server in the background (if it isn't already running) and opens
+the board in your browser — no Terminal window. The server keeps running until you log
+out or run `./macos/stop.sh`; its output goes to `data/app.log`. Rebuilding keeps the
+previous app in `data/previous-builds/` as `*.app.previous` (git-ignored, and not treated
+as an app by macOS — rename it to `Work Sessions.app` to restore it). If you move the
+repo, run the script again.
+
 ## Moving from monday.com
 
 1. In monday, open the board → **⋯** → **More actions** → **Export board to Excel**.
