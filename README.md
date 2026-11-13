@@ -13,6 +13,10 @@ nothing but Python's standard library. Your data stays in one SQLite file.
 - **▶ / ■ timer** on every row; several can run at once. Live totals for today and this week.
 - **Views:** Main table · Today · This week · Last week · Next week · Last month · By task,
   with search and status / project filters.
+- **Projects & tasks:** each task belongs to a project, and choosing a task on an item fills in
+  its project (like monday's linked Projects / Tasks boards). Type a new task or project name
+  on any item to add it. The **Projects & tasks** tab manages the lists — project status and
+  timeline, which project a task belongs to, renames (applied to every item), add and delete.
 - **Item details:** full time log (edit or add sessions by hand), subitems, notes,
   duplicate, delete, plus any extra columns brought in from an import.
 - **Report:** today / week / month totals, hours-by-project donuts for this week,
@@ -27,6 +31,8 @@ nothing but Python's standard library. Your data stays in one SQLite file.
   from other websites open in your browser (Origin / Host checks).
 
 ![Board](docs/board-dark.png)
+
+![Projects & tasks](docs/projects-light.png)
 
 ## Quick start
 
@@ -72,6 +78,18 @@ python3 import_monday.py ~/Downloads/My_Board_1234567890.xlsx
 python3 app.py
 ```
 
+If your work board links to separate **Projects** and **Tasks** boards (monday "connect boards"
+columns), export those boards too and pass them, so each task keeps its project and each project
+its status and timeline:
+
+```bash
+python3 import_monday.py My_Work_Sessions.xlsx --projects My_Projects.xlsx --tasks My_Tasks.xlsx
+# or, to add/refresh just the lists in a database you've already imported:
+python3 import_monday.py --projects My_Projects.xlsx --tasks My_Tasks.xlsx
+```
+
+Without them, the lists are built from your items (a task's project is the one it's used with most).
+
 The importer:
 
 - keeps every item in its monday group, with each item's tracked total exactly as monday had it;
@@ -105,6 +123,7 @@ for every option). Anything you leave out uses the default.
 | `statuses` | `[{"name", "tone"}]` — tone is `neutral`, `warning`, `success` or `critical` |
 | `default_status`, `start_status`, `done_status` | New items; set when a timer starts; marks done (stops timers, stamps end date) |
 | `priorities`, `default_priority` | `[{"name", "tone"}]` — tone is `critical`, `high`, `moderate` or `low` |
+| `project_statuses` | Statuses for projects and tasks — tone adds `info` to the status tones |
 | `report_basis` | Default report rule: `"start"` or `"logged"` |
 | `history_year_from_month` | First month on the previous-year chart (1–12) |
 

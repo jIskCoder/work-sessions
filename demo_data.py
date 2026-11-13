@@ -56,4 +56,14 @@ def build(db_path, days=420, seed=7):
                 con.execute("INSERT INTO sessions(item_id,start,end) VALUES (?,?,?)",
                             (iid, app.iso(start), app.iso(end)))
     con.commit()
+    import catalog
+    catalog.sync_from_items(con)
+    statuses = ["Ongoing", "Working on it", "Ongoing", "Working on it", "Ongoing", "Not started"]
+    for i, name in enumerate(PROJECTS):
+        start = today.replace(month=1, day=1) if i % 2 else today.replace(year=today.year - 1, month=7, day=1)
+        con.execute("UPDATE projects SET status=?, start_date=?, end_date=? WHERE name=?",
+                    (statuses[i % len(statuses)], start.isoformat(),
+                     start.replace(year=start.year + 2).isoformat() if i < 4 else None, name))
+    con.execute("UPDATE tasks SET status='Ongoing' WHERE project IN ('Service Desk','Team Leadership')")
+    con.commit()
     con.close()

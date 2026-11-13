@@ -69,6 +69,15 @@ class AppTest(unittest.TestCase):
         csv = self.call("GET", "/api/export/items.csv")
         self.assertIn(b"Write report", csv)
 
+    def test_favicon_served(self):
+        for path, ctype in (("/favicon.ico", "image/png"), ("/static/favicon.svg", "image/svg+xml"),
+                            ("/static/favicon-32.png", "image/png"), ("/static/apple-touch-icon.png", "image/png")):
+            with urllib.request.urlopen(self.base + path) as r:
+                self.assertEqual((r.status, r.headers.get_content_type()), (200, ctype), path)
+                self.assertTrue(r.read())
+        with urllib.request.urlopen(self.base + "/") as r:
+            self.assertIn(b'rel="icon"', r.read())
+
     def test_manual_session(self):
         it = self.call("POST", "/api/items", {"name": "Manual"})
         self.call("POST", "/api/items/%s/sessions" % it["id"],
