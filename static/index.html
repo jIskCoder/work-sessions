@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Work Sessions</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <style>
 :root{
   color-scheme: light;
@@ -12,7 +15,7 @@
   --accent:#2a78d6; --accent-ink:#ffffff; --focus:#2a78d6;
   --done:#1f8a5b; --done-bg:#dff3e8; --wip:#b36b00; --wip-bg:#fdeccc; --notyet:#5f5e59; --notyet-bg:#e7e6e1;
   --crit:#c23a3a; --crit-bg:#fbe1e1; --high:#b85a1d; --high-bg:#fde6d6; --mod:#5a4bc4; --mod-bg:#e8e5fb; --low:#5f5e59; --low-bg:#ecebe6;
-  --run:#e34948;
+  --run:#e34948; --info:#2a6fc2; --info-bg:#e1ecfa;
   --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#9a988f;
 }
 @media (prefers-color-scheme: dark){
@@ -23,7 +26,7 @@
     --accent:#3987e5; --focus:#6da7ec;
     --done:#5fd19c; --done-bg:#163626; --wip:#f2b84b; --wip-bg:#3a2c10; --notyet:#c3c2b7; --notyet-bg:#2c2c29;
     --crit:#f08080; --crit-bg:#3d1c1c; --high:#f0a070; --high-bg:#3b2414; --mod:#a99ff0; --mod-bg:#25213f; --low:#c3c2b7; --low-bg:#2c2c29;
-    --run:#e66767;
+    --run:#e66767; --info:#8bb8f0; --info-bg:#1b2b42;
     --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#6f6e68;
   }
 }
@@ -34,7 +37,7 @@
     --accent:#3987e5; --focus:#6da7ec;
     --done:#5fd19c; --done-bg:#163626; --wip:#f2b84b; --wip-bg:#3a2c10; --notyet:#c3c2b7; --notyet-bg:#2c2c29;
     --crit:#f08080; --crit-bg:#3d1c1c; --high:#f0a070; --high-bg:#3b2414; --mod:#a99ff0; --mod-bg:#25213f; --low:#c3c2b7; --low-bg:#2c2c29;
-    --run:#e66767;
+    --run:#e66767; --info:#8bb8f0; --info-bg:#1b2b42;
     --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#6f6e68;
 }
 *{box-sizing:border-box}
@@ -65,6 +68,10 @@ main{padding:0 20px 60px}
 .ghead .chev{width:14px;color:var(--text-3);transition:transform .15s}
 .ghead[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .ghead h2{margin:0;font-size:15px;font-weight:650}
+.repeat{margin-left:auto;border:1px solid var(--line-strong);background:var(--surface);color:var(--text-2);border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer}
+.repeat:hover{background:var(--surface-2)}.repeat.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.repeat:not(.on){opacity:0;transition:opacity .15s}.ghead:hover .repeat,.repeat:focus-visible{opacity:1}
+@media (hover:none){.repeat:not(.on){opacity:1}}
 .ghead .meta{color:var(--text-3);font-size:12.5px;font-variant-numeric:tabular-nums}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 table.grid{border-collapse:collapse;width:100%;min-width:1500px}
@@ -77,7 +84,7 @@ table.grid{border-collapse:collapse;width:100%;min-width:1500px}
 .grid input:focus,.grid select:focus{border-color:var(--focus);background:var(--surface);outline:none}
 .grid input[type=date]{width:138px}.grid input[type=time]{width:112px}
 .grid select.pill{width:118px}
-.c-timer{width:118px}.c-name{min-width:260px}.c-more{width:44px;text-align:center}
+.c-timer{width:118px}.c-name{min-width:260px}.c-more{width:44px;text-align:center;padding-left:6px!important}
 .timer{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--text-2)}
 .play{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;display:grid;place-items:center;flex:none}
 .play svg{width:11px;height:11px;fill:var(--text-2)}
@@ -92,6 +99,21 @@ select.pill{appearance:none;-webkit-appearance:none;text-align:center;font-weigh
 .t-high{color:var(--high);background:var(--high-bg)!important}
 .t-moderate{color:var(--mod);background:var(--mod-bg)!important}
 .t-low{color:var(--low);background:var(--low-bg)!important}
+.t-info{color:var(--info);background:var(--info-bg)!important}
+.catbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:14px 0 4px}
+.cat .ghead{cursor:default;flex-wrap:wrap;gap:8px}
+.cat .ghead .chev{cursor:pointer}
+.cat .pname{font-size:15px;font-weight:650;border:1px solid transparent;background:transparent;border-radius:5px;padding:3px 6px;width:340px;max-width:100%;text-overflow:ellipsis}
+.cat .ghead h2{width:340px}
+.cat .pname:hover{border-color:var(--line-strong)}.cat .pname:focus{border-color:var(--focus);background:var(--surface);outline:none}
+.cat .ghead select.pill{width:118px}
+.cat .ghead input[type=date]{border:1px solid var(--line-strong);background:var(--surface);border-radius:5px;padding:3px 6px}
+.cat table.grid{min-width:760px}
+.cat td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--text-2);padding-right:12px;white-space:nowrap}
+.cat .addtask{display:flex;gap:6px;padding:8px}
+.cat .addtask input{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:4px 8px;flex:1;max-width:340px}
+.lbl{font-size:12px;color:var(--text-3)}
+.cat select.pill:not([class*="t-"]){background:transparent!important;border:1px dashed var(--line-strong)!important;color:var(--text-3)}
 .extra{display:grid;grid-template-columns:minmax(0,40%) 1fr;gap:4px 10px;font-size:13px}.extra dt{color:var(--text-3)}.extra dd{margin:0;word-break:break-word}
 .more{border:0;background:none;cursor:pointer;color:var(--text-3);padding:4px 8px;border-radius:5px;font-size:16px;line-height:1}
 .more:hover{background:var(--surface-2);color:var(--text)}
@@ -140,6 +162,49 @@ table.sum{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
 .sum th:first-child,.sum td:first-child{text-align:left}
 .sum th{color:var(--text-2);font-weight:600;font-size:12px}
 .sum td i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+.nowrun{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nowrun .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--run);border-radius:999px;padding:2px 4px 2px 10px;font-size:13px;max-width:420px}
+.nowrun .chip button{border:0;background:none;cursor:pointer;color:inherit;padding:2px 4px}
+.nowrun .nr-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;font-weight:600}
+.nowrun .nr-name::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--run);margin-right:6px;animation:pulse 1.6s infinite}
+.nowrun .nr-t{font-variant-numeric:tabular-nums;color:var(--run);font-weight:600}
+.nowrun .nr-stop{width:24px;height:24px;border-radius:50%!important;background:var(--run)!important;color:#fff!important;display:grid;place-items:center}
+@keyframes pulse{50%{opacity:.35}}
+tr.flash td{animation:flashrow .7s ease 4}
+@keyframes flashrow{50%{background:var(--wip-bg)}}
+.prompt{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:14px 16px;width:min(520px,calc(100% - 32px))}
+.prompt p{margin:0 0 10px}
+.prompt .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* timeline */
+.tl{padding-top:14px}
+.tlbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tlbar input[type=date]{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:5px 8px}
+.tlsum{display:flex;gap:18px;flex-wrap:wrap;color:var(--text-2);font-size:13px;margin:0 0 12px;font-variant-numeric:tabular-nums}
+.tlsum b{color:var(--text)}
+.tlgrid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px 12px;overflow-x:auto}
+.tlrow{display:grid;grid-template-columns:260px 1fr;align-items:center;min-width:820px;border-bottom:1px solid var(--line)}
+.tlrow:last-child{border-bottom:0}
+.tllab{padding:6px 10px 6px 0;font-size:13px;min-width:0}
+.tllab button{border:0;background:none;padding:0;cursor:pointer;text-align:left;color:var(--text);font:inherit;font-weight:550;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.tllab button:hover{text-decoration:underline}
+.tllab small{color:var(--text-3);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tltrack{position:relative;margin-right:22px;height:30px;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(var(--hw) - 1px),var(--line) calc(var(--hw) - 1px),var(--line) var(--hw))}
+.tlaxis .tltrack{height:22px;background:none}
+.tlaxis span{position:absolute;top:3px;transform:translateX(-50%);font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.tlbar-seg{position:absolute;top:5px;bottom:5px;border-radius:4px;min-width:3px;border:0;padding:0 5px;cursor:pointer;color:#fff;font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}
+.tlbar-seg.run{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 6px,transparent 6px 12px)!important}
+.tlgap{position:absolute;top:4px;bottom:4px;border:1px dashed var(--text-3);border-radius:4px;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--text-3) 22%,transparent) 5px 7px);cursor:pointer;padding:0}
+.tlgap:hover{border-color:var(--accent)}
+.tlover{position:absolute;bottom:1px;height:4px;background:var(--crit);border-radius:2px}
+.tlnow{position:absolute;top:0;bottom:0;width:2px;background:var(--run);pointer-events:none}
+.tllists{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+.tllists ul{list-style:none;margin:0;padding:0}
+.tllists li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;font-size:13px}
+.tllists li:last-child{border-bottom:0}
+.tllists li span{flex:1;min-width:0}
+.gapform{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0;padding:10px;border:1px solid var(--accent);border-radius:8px;background:var(--surface)}
+.gapform input{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:4px 7px}
+.gapform input[list]{flex:1;min-width:220px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:8px 14px;border-radius:8px;z-index:60;font-size:13px}
 @media (max-width:700px){.bar,.toolbar,main{padding-left:16px;padding-right:16px}.live{margin-left:0}input.search{width:100%}}
 </style>
@@ -148,6 +213,7 @@ table.sum{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
 <header class="top">
   <div class="bar">
     <h1 id="appTitle">Work Sessions</h1>
+    <div class="nowrun" id="nowRun" aria-live="polite"></div>
     <div class="live" aria-live="off">
       <span>Today <b id="liveToday">0h 0m</b></span>
       <span>This week <b id="liveWeek">0h 0m</b></span>
@@ -161,6 +227,7 @@ table.sum{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
   <input class="search" id="q" type="search" placeholder="Search items, projects, tasks">
   <select class="filter" id="fStatus" aria-label="Status filter"><option value="">All statuses</option></select>
   <select class="filter" id="fProject" aria-label="Project filter"><option value="">All projects</option></select>
+  <label class="hint"><input type="checkbox" id="fMissing"> <span id="fMissingLbl">Missing project or task</span></label>
   <label class="hint"><input type="checkbox" id="hideDone"> Hide Done group</label>
   <span style="flex:1"></span>
   <button class="btn small" id="addGroup">+ Group</button>
@@ -173,6 +240,7 @@ table.sum{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
 <datalist id="dlProjects"></datalist>
 <datalist id="dlTasks"></datalist>
 <datalist id="dlGroups"></datalist>
+<datalist id="dlTlItems"></datalist>
 
 <script src="/static/chart.umd.js"></script>
 <script>
@@ -185,7 +253,9 @@ const VIEWS=[
   {id:'nextweek',label:'Next week'},
   {id:'lastmonth',label:'Last month'},
   {id:'bytask',label:'By task'},
-  {id:'dash',label:'Report'}
+  {id:'timeline',label:'Day timeline'},
+  {id:'dash',label:'Report'},
+  {id:'catalog',label:'Projects & tasks'}
 ];
 let CFG={}, STATUSES=[], PRIORITIES=[], TONE={};
 const L=k=>(CFG.labels&&CFG.labels[k])||k;
@@ -254,28 +324,32 @@ function renderTabs(){
   $('#tabs').innerHTML=VIEWS.map(v=>`<button class="tab" role="tab" aria-selected="${v.id===view}" data-v="${v.id}">${v.label}</button>`).join('');
   $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{view=b.dataset.v;try{localStorage.setItem('ws.view',view)}catch(e){};render()});
 }
+let taskProject=new Map();
 function fillLists(){
-  const P=new Set(),T=new Set();for(const it of S.items){if(it.project)P.add(it.project);if(it.task)T.add(it.task)}
-  $('#dlProjects').innerHTML=[...P].sort().map(p=>`<option value="${esc(p)}">`).join('');
-  $('#dlTasks').innerHTML=[...T].sort().map(p=>`<option value="${esc(p)}">`).join('');
+  const P=new Set((S.projects||[]).map(p=>p.name));for(const it of S.items){if(it.project)P.add(it.project)}
+  taskProject=new Map((S.tasks||[]).map(t=>[t.name,t.project]));
+  $('#dlProjects').innerHTML=[...P].sort((a,b)=>a.localeCompare(b)).map(p=>`<option value="${esc(p)}">`).join('');
+  $('#dlTasks').innerHTML=[...(S.tasks||[])].sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${esc(t.name)}" label="${esc(t.project||'')}">`).join('');
   $('#dlGroups').innerHTML=S.groups.map(p=>`<option value="${esc(p)}">`).join('');
   const cur=$('#fProject').value;
-  $('#fProject').innerHTML='<option value="">'+esc(L('project'))+': all</option>'+[...P].sort().map(p=>`<option ${p===cur?'selected':''}>${esc(p)}</option>`).join('');
+  $('#fProject').innerHTML='<option value="">'+esc(L('project'))+': all</option>'+`<option value="__none__" ${cur==='__none__'?'selected':''}>(No ${esc(L('project'))})</option>`+[...P].sort().map(p=>`<option ${p===cur?'selected':''}>${esc(p)}</option>`).join('');
 }
 
 /* ---------- render: table ---------- */
 function filtered(){
-  const q=$('#q').value.trim().toLowerCase(), st=$('#fStatus').value, pr=$('#fProject').value, hide=$('#hideDone').checked;
+  const q=$('#q').value.trim().toLowerCase(), st=$('#fStatus').value, pr=$('#fProject').value, hide=$('#hideDone').checked, missing=$('#fMissing').checked;
   const R=ranges(); const rng=R[view];
   return S.items.filter(it=>{
     if(q&&!(`${it.name} ${it.project||''} ${it.task||''} ${it.grp||''}`.toLowerCase().includes(q)))return false;
     if(st&&it.status!==st)return false;
-    if(pr&&it.project!==pr)return false;
+    if(pr==='__none__'?!!it.project:(pr&&it.project!==pr))return false;
     if(hide&&(it.grp===CFG.done_status||it.grp==='Done'))return false;
+    if(missing&&it.project&&it.task)return false;
     if(rng){
-      if(view==='today'){ // the default group plus anything started or timed today
-        const d=it.start_date;const timed=(byItem.get(it.id)||[]).some(s=>s.start.slice(0,10)===rng[0]);
-        return it.grp===CFG.default_group||d===rng[0]||timed||running.has(it.id);
+      if(view==='today'){ // open items starting this week; a running timer always shows so it can be stopped
+        if(running.has(it.id))return true;
+        const w=R.thisweek;
+        return it.status!==CFG.done_status&&!!it.start_date&&it.start_date>=w[0]&&it.start_date<=w[1];
       }
       return it.start_date&&it.start_date>=rng[0]&&it.start_date<=rng[1];
     }
@@ -288,6 +362,7 @@ const prClass=p=>p&&TONE['p:'+p]?'t-'+TONE['p:'+p]:'';
 function rowHTML(it){
   const run=running.has(it.id);
   return `<tr data-id="${esc(it.id)}">
+   <td class="c-more"><button class="more" data-act="open" aria-label="Details, time log and notes">⋯${it.notes?`<span class="badge">${it.notes}</span>`:''}</button></td>
    <td class="c-timer"><div class="timer ${run?'running':''}"><button class="play ${run?'running':''}" data-act="${run?'stop':'start'}" aria-label="${run?'Stop timer':'Start timer'}">${run?'<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>':'<svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>'}</button><span data-tt>${fmtHMS(tracked(it))}</span></div></td>
    <td class="c-name"><input data-f="name" value="${esc(it.name)}" aria-label="Item name"></td>
    <td><input data-f="grp" list="dlGroups" value="${esc(it.grp)}" aria-label="Group" style="width:140px"></td>
@@ -299,7 +374,6 @@ function rowHTML(it){
    <td><input data-f="project" list="dlProjects" value="${esc(it.project||'')}" aria-label="${esc(L('project'))}" style="min-width:170px"></td>
    <td><input data-f="task" list="dlTasks" value="${esc(it.task||'')}" aria-label="${esc(L('task'))}" style="min-width:170px"></td>
    <td><select class="pill ${stClass(it.status)}" data-f="status" aria-label="Status"><option value=""></option>${opt(STATUSES,it.status)}</select></td>
-   <td class="c-more"><button class="more" data-act="open" aria-label="Details, time log and notes">⋯${it.notes?`<span class="badge">${it.notes}</span>`:''}</button></td>
   </tr>`;
 }
 function renderTable(){
@@ -319,8 +393,8 @@ function renderTable(){
     const open=expanded[key]??(period||view==='bytask'?gi<6:(k===CFG.default_group||gi===0));
     const n=shown[key]||PAGE; const tot=list.reduce((a,it)=>a+tracked(it,now),0);
     return `<section class="group" data-key="${esc(key)}">
-      <div class="ghead" role="button" tabindex="0" aria-expanded="${open}"><svg class="chev" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><h2>${esc(k)}</h2><span class="meta">${list.length} items · ${fmtHM(tot)} tracked</span></div>
-      ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th>Time tracking</th><th>Item</th><th>Group</th><th>Start date</th><th>Start hour</th><th>Priority</th><th>End date</th><th>End hour</th><th>${esc(L('project'))}</th><th>${esc(L('task'))}</th><th>Status</th><th></th></tr></thead>
+      <div class="ghead" role="button" tabindex="0" aria-expanded="${open}"><svg class="chev" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><h2>${esc(k)}</h2><span class="meta">${list.length} items · ${fmtHM(tot)} tracked</span>${view!=='bytask'&&S.groups.includes(k)?`<button class="repeat${(S.repeat_groups||[]).includes(k)?' on':''}" data-repeat="${esc(k)}" aria-pressed="${(S.repeat_groups||[]).includes(k)}" title="Copy last week's items in this group into each new week">↻ ${(S.repeat_groups||[]).includes(k)?'Repeats weekly':'Repeat weekly'}</button>`:''}</div>
+      ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th aria-label="Details"></th><th>Time tracking</th><th>Item</th><th>Group</th><th>Start date</th><th>Start hour</th><th>Priority</th><th>End date</th><th>End hour</th><th>${esc(L('project'))}</th><th>${esc(L('task'))}</th><th>Status</th></tr></thead>
       <tbody>${list.slice(0,n).map(rowHTML).join('')}</tbody></table></div>
       ${list.length>n?`<button class="btn small showmore" data-more="${esc(key)}">Show ${Math.min(PAGE*5,list.length-n)} more of ${list.length-n}</button>`:''}`:''}
     </section>`}).join('');
@@ -384,6 +458,216 @@ function renderDash(){
    <tr><td><b>Total</b></td>${pies.map(([,k])=>`<td><b>${(Object.values(per[k]).reduce((a,b)=>a+b,0)/3600).toFixed(2)}</b></td>`).join('')}</tr></tbody></table>`;
 }
 
+/* ---------- render: projects & tasks ---------- */
+let catQ='', catOpen={};
+try{catOpen=JSON.parse(localStorage.getItem('ws.catOpen')||'{}')}catch(e){}
+function renderCatalog(){
+  const PS=(CFG.project_statuses||[]).map(x=>x.name);
+  const nowD=new Date(), byP={}, byT={};
+  for(const it of S.items){const t=tracked(it,nowD);
+    const p=it.project||'',k=it.task||'';(byP[p]=byP[p]||{n:0,s:0});byP[p].n++;byP[p].s+=t;
+    if(k){(byT[k]=byT[k]||{n:0,s:0});byT[k].n++;byT[k].s+=t}}
+  const q=catQ.trim().toLowerCase();
+  const tasksOf=new Map();for(const t of S.tasks){const k=t.project||'';(tasksOf.get(k)||tasksOf.set(k,[]).get(k)).push(t)}
+  const projects=[...S.projects];if(tasksOf.has(''))projects.push({id:null,name:'',status:null});
+  const sel=(list,val,attrs)=>`<select class="pill ${pjClass(val)}" ${attrs}><option value=""></option>${opt(list,val)}</select>`;
+  const projOpts=S.projects.map(p=>p.name);
+  const html=projects.map(p=>{
+    const tasks=(tasksOf.get(p.name||'')||[]).filter(t=>!q||t.name.toLowerCase().includes(q)||(p.name||'').toLowerCase().includes(q));
+    if(q&&!tasks.length&&!(p.name||'').toLowerCase().includes(q))return'';
+    const open=q?true:(catOpen[p.name]??false);const u=byP[p.name||'']||{n:0,s:0};
+    const del=p.id&&!u.n&&!(tasksOf.get(p.name)||[]).length;
+    return `<section class="group" data-pid="${p.id??''}" data-pname="${esc(p.name)}">
+     <div class="ghead" aria-expanded="${open}">
+       <svg class="chev" data-cact="toggle" role="button" tabindex="0" aria-label="Show tasks" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+       ${p.id?`<input class="pname" data-pf="name" title="${esc(p.name)}" value="${esc(p.name)}" aria-label="${esc(L('project'))} name">
+         ${sel(PS,p.status,'data-pf="status" aria-label="Status"')}
+         <span class="lbl">Start</span><input type="date" data-pf="start_date" value="${esc(p.start_date||'')}" aria-label="Start date">
+         <span class="lbl">End</span><input type="date" data-pf="end_date" value="${esc(p.end_date||'')}" aria-label="End date">`
+       :`<h2>(No project)</h2>`}
+       <span class="meta">${plural((tasksOf.get(p.name||'')||[]).length,'task')} · ${plural(u.n,'item')} · ${fmtHM(u.s)} tracked</span>
+       ${del?`<button class="more" data-cact="pdel" title="Delete (not used by any task or item)" aria-label="Delete project">✕</button>`:''}
+     </div>
+     ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th>${esc(L('task'))}</th><th>${esc(L('project'))}</th><th>Status</th><th style="text-align:right">Items</th><th style="text-align:right">Tracked</th><th></th></tr></thead><tbody>
+      ${tasks.map(t=>{const v=byT[t.name]||{n:0,s:0};return `<tr data-tid="${t.id}">
+        <td><input data-tf="name" value="${esc(t.name)}" aria-label="${esc(L('task'))} name"></td>
+        <td><select data-tf="project" aria-label="${esc(L('project'))}"><option value="">(none)</option>${opt(projOpts,t.project)}</select></td>
+        <td>${sel(PS,t.status,'data-tf="status" aria-label="Status"')}</td>
+        <td class="num">${v.n}</td><td class="num">${fmtHM(v.s)}</td>
+        <td class="c-more">${v.n?'':`<button class="more" data-cact="tdel" aria-label="Delete task">✕</button>`}</td></tr>`}).join('')||`<tr><td colspan="6" class="hint" style="padding:10px">No tasks yet.</td></tr>`}
+     </tbody></table>
+     <div class="addtask"><input data-newtask placeholder="New task in ${esc(p.name||'(no project)')}…" aria-label="New task"><button class="btn small" data-cact="tadd">Add</button></div></div>`:''}
+    </section>`}).join('');
+  $('#main').innerHTML=`<div class="cat"><div class="catbar">
+     <button class="btn primary" data-cact="padd">+ Project</button>
+     <input class="search" id="catq" type="search" placeholder="Search projects and tasks" value="${esc(catQ)}">
+     <button class="btn small" data-cact="expand">Expand all</button><button class="btn small" data-cact="collapse">Collapse all</button>
+     <span class="hint">Choosing a task on an item fills in its project. Renaming or moving here updates every item.</span></div>
+   ${html||'<p class="empty">Nothing matches.</p>'}</div>`;
+  const qi=$('#catq');qi.oninput=()=>{catQ=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{const pos=qi.selectionStart;renderCatalog();const n=$('#catq');n.focus();n.setSelectionRange(pos,pos)},200)};
+}
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+const pjClass=v=>{const t=(CFG.project_statuses||[]).find(x=>x.name===v);return t?'t-'+t.tone:''};
+function saveCatOpen(){try{localStorage.setItem('ws.catOpen',JSON.stringify(catOpen))}catch(e){}}
+async function catCall(method,url,body){
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||'Could not save');return null}return j;
+}
+$('#main').addEventListener('click',async e=>{
+  if(view!=='catalog')return;
+  const b=e.target.closest('[data-cact]');if(!b)return;
+  const sec=b.closest('section[data-pname]'),pname=sec?sec.dataset.pname:null,pid=sec?sec.dataset.pid:null;
+  const a=b.dataset.cact;
+  if(a==='toggle'){catOpen[pname]=!(catOpen[pname]??false);saveCatOpen();return renderCatalog()}
+  if(a==='expand'||a==='collapse'){for(const p of S.projects)catOpen[p.name]=a==='expand';catOpen['']=a==='expand';saveCatOpen();return renderCatalog()}
+  if(a==='padd'){const n=prompt('New project name');if(!n)return;const r=await catCall('POST','/api/projects',{name:n});if(r){catOpen[r.name]=true;saveCatOpen();await load(false);renderCatalog()}return}
+  if(a==='pdel'){if(!confirm(`Delete project “${pname}”?`))return;if(await catCall('DELETE',`/api/projects/${pid}`)){await load(false);renderCatalog()}return}
+  if(a==='tadd'){const inp=sec.querySelector('[data-newtask]');const n=inp.value.trim();if(!n)return;
+    if(await catCall('POST','/api/tasks',{name:n,project:pname||null})){await load(false);renderCatalog();const ni=document.querySelector(`section[data-pname="${CSS.escape(pname)}"] [data-newtask]`);if(ni)ni.focus()}return}
+  if(a==='tdel'){const tr=b.closest('tr');const name=tr.querySelector('[data-tf=name]').value;if(!confirm(`Delete task “${name}”?`))return;
+    if(await catCall('DELETE',`/api/tasks/${tr.dataset.tid}`)){await load(false);renderCatalog()}return}
+});
+$('#main').addEventListener('keydown',e=>{
+  if(view!=='catalog')return;
+  if(e.key==='Enter'&&e.target.matches('[data-newtask]')){e.preventDefault();e.target.closest('section').querySelector('[data-cact=tadd]').click()}
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-cact=toggle]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}))}
+});
+$('#main').addEventListener('change',async e=>{
+  if(view!=='catalog')return;
+  const pf=e.target.dataset.pf, tf=e.target.dataset.tf;if(!pf&&!tf)return;
+  const val=e.target.value===''?null:e.target.value;
+  if(pf){const sec=e.target.closest('section');
+    if(pf==='name'&&val!==sec.dataset.pname){const n=(S.items.filter(i=>i.project===sec.dataset.pname)).length;
+      if(n&&!confirm(`Rename “${sec.dataset.pname}” to “${val}”? This updates ${plural(n,'item')}.`)){e.target.value=sec.dataset.pname;return}}
+    const r=await catCall('PATCH',`/api/projects/${sec.dataset.pid}`,{[pf]:val});
+    if(!r){await load(false);return renderCatalog()}
+    if(pf==='name'){catOpen[r.name]=catOpen[sec.dataset.pname];saveCatOpen()}}
+  else{const tr=e.target.closest('tr');const t=S.tasks.find(x=>String(x.id)===tr.dataset.tid);
+    const n=S.items.filter(i=>i.task===t.name).length;
+    if(tf==='project'&&n&&!confirm(`Move “${t.name}” to ${val||'no project'}? Its ${plural(n,'item')} move too.`)){e.target.value=t.project||'';return}
+    if(tf==='name'&&n&&val!==t.name&&!confirm(`Rename “${t.name}” to “${val}”? This updates ${plural(n,'item')}.`)){e.target.value=t.name;return}
+    if(!await catCall('PATCH',`/api/tasks/${tr.dataset.tid}`,{[tf]:val})){await load(false);return renderCatalog()}}
+  await load(false);renderCatalog();
+});
+
+/* ---------- one timer at a time ---------- */
+function renderNowRunning(){
+  const el=$('#nowRun');if(!el)return;const nowD=new Date();
+  const runs=S.sessions.filter(s=>!s.end).map(s=>({s,it:S.items.find(i=>i.id===s.item_id)})).filter(x=>x.it);
+  el.innerHTML=runs.map(({s,it})=>`<span class="chip"><button class="nr-name" data-reveal="${esc(it.id)}" title="Show “${esc(it.name)}”">${esc(it.name)}</button><span class="nr-t" data-nrt="${s.id}">${fmtHMS(sessSecs(s,nowD))}</span><button class="nr-stop" data-nrstop="${esc(it.id)}" aria-label="Stop timer for ${esc(it.name)}"><svg viewBox="0 0 10 10" width="9" height="9"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg></button></span>`).join('');
+}
+$('#nowRun').addEventListener('click',async e=>{
+  const r=e.target.closest('[data-reveal]');if(r)return revealItem(r.dataset.reveal);
+  const st=e.target.closest('[data-nrstop]');
+  if(st){await api('POST',`/api/items/${encodeURIComponent(st.dataset.nrstop)}/stop`);await load(false);render()}
+});
+function revealItem(id){
+  const tr=document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+  if(tr){tr.scrollIntoView({block:'center',behavior:'smooth'});tr.classList.remove('flash');void tr.offsetWidth;tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),3000)}
+  else openDrawer(id);
+}
+function closePrompt(){document.querySelectorAll('.prompt').forEach(n=>n.remove());document.removeEventListener('keydown',promptKey)}
+function promptKey(e){if(e.key==='Escape')closePrompt()}
+async function startTimer(id,sw=false){
+  const r=await fetch(`/api/items/${encodeURIComponent(id)}/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sw?{switch:true}:{})});
+  if(r.status===409){
+    const j=await r.json();const cur=j.running[0];const want=S.items.find(i=>i.id===id);
+    const s=S.sessions.find(x=>x.item_id===cur.id&&!x.end);
+    revealItem(cur.id);closePrompt();
+    const box=document.createElement('div');box.className='prompt';box.setAttribute('role','alertdialog');box.setAttribute('aria-label','A timer is already running');
+    box.innerHTML=`<p><b>“${esc(cur.name)}”</b> is already running${s?` (${fmtHM(sessSecs(s,new Date()))})`:''}. Only one timer can run at a time.</p>
+      <div class="row"><button class="btn" data-p="keep">Keep it running</button><button class="btn primary" data-p="switch">Stop it and start “${esc(want?want.name:'this item')}”</button></div>`;
+    document.body.appendChild(box);
+    box.querySelector('[data-p=keep]').onclick=closePrompt;
+    box.querySelector('[data-p=switch]').onclick=async()=>{closePrompt();closeDrawer();await startTimer(id,true)};
+    box.querySelector('[data-p=keep]').focus();document.addEventListener('keydown',promptKey);
+    return;
+  }
+  if(!r.ok){toast('Could not start the timer — is the app still running?');return}
+  closePrompt();await load(false);render();
+}
+
+/* ---------- day timeline ---------- */
+let tlDay=null, tlItemIds=new Map();
+const hhmm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function dayModel(day){
+  const d0=parseL(day+'T00:00:00'),d1=addDays(d0,1),nowD=new Date();
+  const byId=new Map(S.items.map(i=>[i.id,i])),segs=[];
+  for(const s of S.sessions){const a=parseL(s.start),b=s.end?parseL(s.end):nowD;if(b<=d0||a>=d1||b<=a)continue;
+    segs.push({s,it:byId.get(s.item_id),a:new Date(Math.max(a,d0)),b:new Date(Math.min(b,d1)),run:!s.end})}
+  segs.sort((x,y)=>x.a-y.a);
+  const union=[];for(const g of segs){const l=union[union.length-1];if(l&&g.a<=l.b){if(g.b>l.b)l.b=g.b}else union.push({a:g.a,b:g.b})}
+  const gaps=[];for(let i=1;i<union.length;i++){if(union[i].a-union[i-1].b>=5*60e3)gaps.push({a:union[i-1].b,b:union[i].a})}
+  // overlaps: any time two sessions run at once
+  const ev=[];segs.forEach((g,k)=>{ev.push([+g.a,1,k]);ev.push([+g.b,-1,k])});ev.sort((x,y)=>x[0]-y[0]||x[1]-y[1]);
+  const over=[];let open=new Set(),startO=null;
+  for(const [t,dlt,k] of ev){if(dlt>0){open.add(k);if(open.size===2){startO={a:new Date(t),who:new Set(open)}}else if(open.size>2&&startO){open.forEach(x=>startO.who.add(x))}}
+    else{if(open.size===2&&startO&&t-startO.a>=60e3)over.push({a:startO.a,b:new Date(t),who:[...startO.who]});open.delete(k);if(open.size<2)startO=null}}
+  const total=union.reduce((x,u)=>x+(u.b-u.a),0)/1000;
+  return {d0,d1,segs,union,gaps,over,total};
+}
+function renderTimeline(){
+  const today=ymd(new Date());const day=tlDay||today;tlDay=day;
+  const M=dayModel(day),nowD=new Date();
+  const hrs=x=>(x-M.d0)/36e5;
+  let lo=8,hi=18;if(M.segs.length){lo=Math.min(lo,Math.floor(hrs(M.segs[0].a)));hi=Math.max(hi,Math.ceil(Math.max(...M.segs.map(g=>hrs(g.b)))))}
+  lo=Math.max(0,lo);hi=Math.min(24,Math.max(hi,lo+1));
+  const pct=x=>((hrs(x)-lo)/(hi-lo)*100).toFixed(3)+'%', wid=(a,b)=>((hrs(b)-hrs(a))/(hi-lo)*100).toFixed(3)+'%';
+  const hw=`calc(100% / ${hi-lo})`;
+  const lanes=new Map();for(const g of M.segs){(lanes.get(g.s.item_id)||lanes.set(g.s.item_id,[]).get(g.s.item_id)).push(g)}
+  const dur=(a,b)=>fmtHM((b-a)/1000);
+  const axis=Array.from({length:hi-lo+1},(_,k)=>`<span style="left:${(k/(hi-lo)*100).toFixed(3)}%">${pad(lo+k)}:00</span>`).join('');
+  const nowLine=day===today?`<div class="tlnow" style="left:${pct(nowD)}"></div>`:'';
+  const segBtn=g=>`<button class="tlbar-seg${g.run?' run':''}" data-tlopen="${esc(g.s.item_id)}" style="left:${pct(g.a)};width:${wid(g.a,g.b)};background:${colorOf((g.it&&g.it.project)||'(No project)')}" title="${esc(g.it?g.it.name:'')} · ${hhmm(g.a)}–${g.run?'now':hhmm(g.b)} (${dur(g.a,g.b)})">${(g.b-g.a)>=40*60e3?esc(hhmm(g.a)+' '+(g.it?g.it.name:'')):''}</button>`;
+  const overview=M.union.map(u=>`<div class="tlbar-seg" style="left:${pct(u.a)};width:${wid(u.a,u.b)};background:var(--accent);cursor:default" title="${hhmm(u.a)}–${hhmm(u.b)} (${dur(u.a,u.b)})"></div>`).join('')
+    +M.gaps.map((g,k)=>`<button class="tlgap" data-gap="${k}" style="left:${pct(g.a)};width:${wid(g.a,g.b)}" title="Gap ${hhmm(g.a)}–${hhmm(g.b)} (${dur(g.a,g.b)}) — click to log time" aria-label="Gap ${hhmm(g.a)} to ${hhmm(g.b)}, log time"></button>`).join('')
+    +M.over.map(o=>`<div class="tlover" style="left:${pct(o.a)};width:${wid(o.a,o.b)}" title="Overlap ${hhmm(o.a)}–${hhmm(o.b)}"></div>`).join('');
+  const laneRows=[...lanes.entries()].map(([iid,gs])=>{const it=gs[0].it||{name:'(deleted item)'};const t=gs.reduce((x,g)=>x+(g.b-g.a),0)/1000;
+    return `<div class="tlrow"><div class="tllab"><button data-tlopen="${esc(iid)}" title="${esc(it.name)}">${esc(it.name)}</button><small>${esc([it.project,it.task].filter(Boolean).join(' · ')||'No project')} · ${fmtHM(t)}</small></div><div class="tltrack" style="--hw:${hw}">${gs.map(segBtn).join('')}${nowLine}</div></div>`}).join('');
+  const first=M.segs.length?hhmm(M.segs[0].a):'–', last=M.segs.length?(M.segs.some(g=>g.run)?'running':hhmm(new Date(Math.max(...M.segs.map(g=>+g.b))))):'–';
+  const gapTot=M.gaps.reduce((x,g)=>x+(g.b-g.a),0)/1000;
+  const name=g=>{const it=M.segs[g]&&M.segs[g].it;return it?it.name:'?'};
+  $('#main').innerHTML=`<div class="tl">
+   <div class="tlbar"><button class="btn small" data-tl="-1" aria-label="Previous day">◀</button><input type="date" id="tlDate" value="${day}" aria-label="Day"><button class="btn small" data-tl="1" aria-label="Next day">▶</button><button class="btn small" data-tl="0">Today</button>
+     <span class="hint">${parseL(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})}</span></div>
+   <div class="tlsum"><span>Logged <b>${fmtHM(M.total)}</b></span><span>First start <b>${first}</b></span><span>Last end <b>${last}</b></span><span>Gaps <b>${M.gaps.length} · ${fmtHM(gapTot)}</b></span><span>Overlaps <b>${M.over.length}</b></span></div>
+   ${M.segs.length?`<div class="tlgrid">
+     <div class="tlrow tlaxis"><div class="tllab"></div><div class="tltrack">${axis}</div></div>
+     <div class="tlrow"><div class="tllab"><b>Whole day</b><small>gaps hatched · overlaps in red</small></div><div class="tltrack" style="--hw:${hw}">${overview}${nowLine}</div></div>
+     ${laneRows}</div>`:`<p class="empty">No time logged on this day. Use “Log time” below to add a session.</p>`}
+   <div class="tllists">
+     <div class="card"><h3>Gaps of 5 minutes or more</h3><div class="sub">Between your first start and last end</div><div id="gapform"></div><ul>${M.gaps.map((g,k)=>`<li><span>${hhmm(g.a)}–${hhmm(g.b)} · ${dur(g.a,g.b)}</span><button class="btn small" data-gap="${k}">Log time…</button></li>`).join('')||'<li><span class="hint">No gaps.</span></li>'}
+       <li><span class="hint">Log time at another time of day</span><button class="btn small" data-gap="new">Log time…</button></li></ul></div>
+     <div class="card"><h3>Overlaps</h3><div class="sub">Two timers running at once — click a name to fix its times</div><ul>${M.over.map(o=>`<li><span>${hhmm(o.a)}–${hhmm(o.b)} · ${dur(o.a,o.b)}</span><span>${o.who.map(k=>`<button class="more" style="font-size:13px" data-tlopen="${esc(M.segs[k].s.item_id)}">${esc(name(k))}</button>`).join(' & ')}</span></li>`).join('')||'<li><span class="hint">None.</span></li>'}</ul></div>
+   </div></div>`;
+  window._tlModel=M;
+}
+function gapForm(g){
+  const day=tlDay, nearby=S.items.slice().sort((x,y)=>{const dx=Math.abs(parseL((x.start_date||'1970-01-01')+'T00:00:00')-parseL(day+'T00:00:00')),dy=Math.abs(parseL((y.start_date||'1970-01-01')+'T00:00:00')-parseL(day+'T00:00:00'));return dx-dy}).slice(0,400);
+  tlItemIds=new Map();
+  $('#dlTlItems').innerHTML=nearby.map(it=>{const v=`${it.name} — ${it.project||'no project'} · ${it.start_date?fmtDay(it.start_date):'no date'}`;tlItemIds.set(v,it.id);return `<option value="${esc(v)}">`}).join('');
+  const a=g?hhmm(g.a):'09:00',b=g?hhmm(g.b):'10:00';
+  $('#gapform').innerHTML=`<form class="gapform"><input list="dlTlItems" id="gfItem" placeholder="Item — pick one, or type a new name" aria-label="Item" required>
+     <input type="time" id="gfA" value="${a}" aria-label="From" required><span>–</span><input type="time" id="gfB" value="${b}" aria-label="To" required>
+     <button class="btn small primary">Add</button><button class="btn small" type="button" data-gfcancel>Cancel</button></form>`;
+  const f=$('#gapform form');$('#gfItem').focus();
+  f.querySelector('[data-gfcancel]').onclick=()=>{$('#gapform').innerHTML=''};
+  f.onsubmit=async e=>{e.preventDefault();
+    const v=$('#gfItem').value.trim(),A=$('#gfA').value,B=$('#gfB').value;if(!v||!A||!B)return;
+    if(B<=A){toast('The end time must be after the start time');return}
+    let id=tlItemIds.get(v);
+    if(!id){const it=await api('POST','/api/items',{name:v,start_date:day,start_hour:A});id=it.id}
+    await api('POST',`/api/items/${encodeURIComponent(id)}/sessions`,{start:`${day}T${A}:00`,end:`${day}T${B}:00`});
+    await load(false);renderTimeline();toast(`Logged ${A}–${B}`)};
+}
+$('#main').addEventListener('click',e=>{
+  if(view!=='timeline')return;
+  const o=e.target.closest('[data-tlopen]');if(o)return openDrawer(o.dataset.tlopen);
+  const n=e.target.closest('[data-tl]');if(n){const k=+n.dataset.tl;tlDay=k===0?ymd(new Date()):ymd(addDays(parseL(tlDay+'T00:00:00'),k));return renderTimeline()}
+  const g=e.target.closest('[data-gap]');if(g){const M=window._tlModel;gapForm(g.dataset.gap==='new'?null:M.gaps[+g.dataset.gap]);$('#gapform').scrollIntoView({block:'nearest',behavior:'smooth'})}
+});
+$('#main').addEventListener('change',e=>{if(view==='timeline'&&e.target.id==='tlDate'&&e.target.value){tlDay=e.target.value;renderTimeline()}});
+
 /* ---------- drawer ---------- */
 async function openDrawer(id){
   const d=await api('GET',`/api/items/${encodeURIComponent(id)}/detail`);
@@ -422,25 +706,34 @@ async function openDrawer(id){
   document.addEventListener('keydown',escClose);
 }
 function escClose(e){if(e.key==='Escape')closeDrawer()}
-function closeDrawer(){document.querySelectorAll('.scrim,aside.drawer').forEach(n=>n.remove());document.removeEventListener('keydown',escClose)}
+function closeDrawer(){const had=document.querySelector('aside.drawer');document.querySelectorAll('.scrim,aside.drawer').forEach(n=>n.remove());document.removeEventListener('keydown',escClose);if(had&&view==='timeline')renderTimeline()}
 
 /* ---------- events ---------- */
 $('#main').addEventListener('click',async e=>{
+  if(view==='catalog')return;
+  const rp=e.target.closest('[data-repeat]');
+  if(rp){const g=rp.dataset.repeat,on=!(S.repeat_groups||[]).includes(g);
+    if(on&&!confirm(`Repeat “${g}” every week?\n\nAt the start of each new week, last week's items in this group are copied into the new week (same day and time, project and task; not started, no tracked time). Items already there aren't duplicated.`))return;
+    const r=await api('POST','/api/groups/repeat',{name:g,enabled:on});await load();
+    toast(on?(r.created?`Copied ${r.created} item${r.created===1?'':'s'} into this week`:'This week is already filled; repeats from next week'):`“${g}” no longer repeats`);return}
   const gh=e.target.closest('.ghead');
   if(gh){const key=gh.parentElement.dataset.key;expanded[key]=gh.getAttribute('aria-expanded')!=='true';try{localStorage.setItem('ws.expanded',JSON.stringify(expanded))}catch(_){};renderTable();return}
   const more=e.target.closest('[data-more]');if(more){shown[more.dataset.more]=(shown[more.dataset.more]||PAGE)+PAGE*5;renderTable();return}
   const b=e.target.closest('[data-act]');if(!b)return;
   const id=b.closest('tr').dataset.id;
   if(b.dataset.act==='open')return openDrawer(id);
+  if(b.dataset.act==='start')return startTimer(id);
   await api('POST',`/api/items/${encodeURIComponent(id)}/${b.dataset.act}`);await load(false);render();
 });
-$('#main').addEventListener('keydown',e=>{const gh=e.target.closest('.ghead');if(gh&&(e.key==='Enter'||e.key===' ')){e.preventDefault();gh.click()}});
+$('#main').addEventListener('keydown',e=>{if(view==='catalog')return;const gh=e.target.closest('.ghead');if(gh&&(e.key==='Enter'||e.key===' ')){e.preventDefault();gh.click()}});
 $('#main').addEventListener('change',async e=>{
   const f=e.target.dataset.f;if(!f)return;
-  const tr=e.target.closest('tr'),id=tr.dataset.id;
+  const tr=e.target.closest('tr[data-id]');if(!tr)return;const id=tr.dataset.id;
   const val=e.target.value===''?null:e.target.value;
   const upd=await api('PATCH',`/api/items/${encodeURIComponent(id)}`,{[f]:val});
   const i=S.items.findIndex(x=>x.id===id);if(i>=0)Object.assign(S.items[i],upd);
+  if(f==='task'){const pi=tr.querySelector('input[data-f=project]');if(pi&&pi.value!==(upd.project||'')){pi.value=upd.project||'';pi.animate([{background:'var(--info-bg)'},{background:'transparent'}],{duration:900})}e.target.value=upd.task||''}
+  if(f==='project'){e.target.value=upd.project||''}
   if(f==='status'||f==='priority')e.target.className='pill '+(f==='status'?stClass(val):prClass(val));
   if(f==='status'&&val===CFG.done_status){await load(false);render()}
   if(f==='grp'||f==='project'||f==='task'){await load(false);fillLists()}
@@ -451,13 +744,15 @@ $('#newItem').onclick=async()=>{const grp=CFG.default_group;const it=await api('
   if(inp){inp.scrollIntoView({block:'center'});inp.focus();inp.select()}};
 $('#addGroup').onclick=async()=>{const n=prompt('New group name');if(n){await api('POST','/api/groups',{name:n});await load()}};
 let qT;$('#q').oninput=()=>{clearTimeout(qT);qT=setTimeout(render,180)};
-['#fStatus','#fProject','#hideDone'].forEach(s=>$(s).onchange=render);
+['#fStatus','#fProject','#hideDone','#fMissing'].forEach(s=>$(s).onchange=render);
 
 /* ---------- live clock ---------- */
 setInterval(()=>{
   const nowD=new Date(),R=ranges();
   $('#liveToday').textContent=fmtHM(loggedBetween(...R.today,nowD));
   $('#liveWeek').textContent=fmtHM(loggedBetween(...R.thisweek,nowD));
+  document.querySelectorAll('[data-nrt]').forEach(el=>{const s=S.sessions.find(x=>x.id==el.dataset.nrt);if(s)el.textContent=fmtHMS(sessSecs(s,nowD))});
+  if(view==='timeline'&&running.size&&nowD.getSeconds()===0&&!document.querySelector('.gapform'))renderTimeline();
   if(!running.size)return;
   document.querySelectorAll('tr').forEach(tr=>{if(running.has(tr.dataset.id)){const it=S.items.find(x=>x.id===tr.dataset.id);if(it)tr.querySelector('[data-tt]').textContent=fmtHMS(tracked(it,nowD))}});
 },1000);
@@ -465,8 +760,9 @@ setInterval(()=>{
 /* ---------- boot ---------- */
 function render(){
   renderTabs();
-  $('#toolbar').style.display=view==='dash'?'none':'';
-  if(view==='dash')renderDash();else{charts.forEach(c=>c.destroy());charts=[];renderTable()}
+  $('#toolbar').style.display=(view==='dash'||view==='catalog'||view==='timeline')?'none':'';
+  renderNowRunning();
+  if(view==='dash')renderDash();else{charts.forEach(c=>c.destroy());charts=[];view==='catalog'?renderCatalog():view==='timeline'?renderTimeline():renderTable()}
 }
 async function load(doRender=true){
   S=await api('GET','/api/state');CFG=S.config;
@@ -475,8 +771,9 @@ async function load(doRender=true){
   if(!basis)basis=CFG.report_basis||'start';
   document.title=CFG.title;$('#appTitle').textContent=CFG.title;
   {const cur=$('#fStatus').value;$('#fStatus').innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')}
+  $('#fMissingLbl').textContent=`Missing ${L('project')} or ${L('task')}`;
   $('#q').placeholder=`Search items, ${L('project').toLowerCase()}, ${L('task').toLowerCase()}`;
-  index();assignColors();fillLists();
+  index();assignColors();fillLists();renderNowRunning();
   if(doRender)render();
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(view==='dash')renderDash()});

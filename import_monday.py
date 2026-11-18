@@ -15,6 +15,15 @@ What is imported
   * subitems (name, status, date)
   * any other columns are kept per item as read-only "extra" fields
 
+Linked Projects / Tasks boards (monday "connect boards"): export those boards too and pass
+them, so choosing a task fills in its project, with each project's status and timeline:
+
+    python3 import_monday.py work.xlsx --projects My_Projects.xlsx --tasks My_Tasks.xlsx
+    python3 import_monday.py --projects My_Projects.xlsx --tasks My_Tasks.xlsx   # lists only,
+                                                         # into an existing database
+
+Without them, the lists are built from the items (a task's project = the one it's used with most).
+
 Columns are detected by header name. Override any of them with --map FIELD="Header":
   start_date, start_hour, end_date, end_hour, priority, status, project, task, tracked, id
 
@@ -33,6 +42,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import app  # noqa: E402
+import catalog  # noqa: E402
 
 FIELDS = ["start_date", "start_hour", "end_date", "end_hour", "priority", "status",
           "project", "task", "tracked", "id"]
@@ -112,6 +122,43 @@ def to_clock(v):
     raise ValueError("unrecognised time %r" % v)
 
 
+def heading_rows(rows):
+    """Indexes of group-heading rows. A lone text cell is a group heading when it is
+
+    * directly followed by a "Name" header row (monday repeats the header under each group), or
+    * below a header that has an "Item ID" column — every real item has an ID, so a row with
+      only a name and no ID can't be an item, or
+    * below a header without an ID column, but preceded by a blank row or by the previous
+      group's summary row (first cell empty, totals in other columns).
+
+    Otherwise a lone text cell is an item that has only a name.
+    """
+    def is_header(r):
+        return bool(r) and r[0] == "Name" and len(nonempty(r)) > 1
+
+    out = set()
+    header = None
+    for i, r in enumerate(rows):
+        vals = nonempty(r)
+        if not vals:
+            continue
+        if is_header(r):
+            header = r
+            continue
+        if len(vals) != 1 or not isinstance(r[0], str):
+            continue
+        nxt = next((rows[k] for k in range(i + 1, len(rows)) if nonempty(rows[k])), None)
+        if is_header(nxt):
+            out.add(i)
+        elif header is not None:
+            has_id = any(str(h or "").strip().lower().startswith("item id") for h in header)
+            prev = rows[i - 1] if i > 0 else []
+            separated = not nonempty(prev) or prev[0] in (None, "")
+            if has_id or separated:
+                out.add(i)
+    return out
+
+
 def nonempty(row):
     return [v for v in row if v is not None and v != ""]
 
@@ -149,15 +196,19 @@ def read_export(path, overrides):
     group = None
     mode = "item"
     last = None
-    for row in main.iter_rows(values_only=True):
-        r = list(row)
+    sheet = [list(row) for row in main.iter_rows(values_only=True)]
+    headings = heading_rows(sheet)
+    for i, r in enumerate(sheet):
         vals = nonempty(r)
         if not vals:
             continue
-        if board_title is None and len(vals) == 1 and header is None and group is None:
-            board_title = vals[0]
-            group = None
-            board_title_seen = True
+        if i in headings:
+            group = r[0].strip()
+            mode = "item"
+            continue
+        if header is None and len(vals) == 1:
+            if board_title is None:
+                board_title = vals[0]
             continue
         if r[0] == "Subitems" and len(r) > 1 and r[1] == "Name":
             mode = "sub"
@@ -175,14 +226,10 @@ def read_export(path, overrides):
                              "date": to_date(d.get("Date")),
                              "id": str(d.get("Item ID (auto generated)") or "S%d" % len(subs))})
             continue  # group summary rows
-        if len(vals) == 1 and isinstance(r[0], str):
-            group = r[0].strip()
-            mode = "item"
-            continue
         if header is None:
             continue
         mode = "item"
-        d = dict(zip(header, r))
+        d = dict(zip(header, r + [None] * (len(header) - len(r))))
         get = lambda f: d.get(mapping[f]) if f in mapping else None  # noqa: E731
         iid = str(get("id") or "I%d" % len(items))
         extra = {}
@@ -287,6 +334,73 @@ def read_export(path, overrides):
             "notes": notes, "mapping": mapping or {}, "unmatched": unmatched}
 
 
+def read_board(path):
+    """Read a plain monday board export: [{'_group': .., header: value, ...}] for each item."""
+    try:
+        import openpyxl
+    except ImportError:
+        sys.exit("Importing needs openpyxl:  pip3 install openpyxl")
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    rows, header, group, title = [], None, None, None
+    sheet = [list(r) for r in wb.worksheets[0].iter_rows(values_only=True)]
+    headings = heading_rows(sheet)
+    for i, r in enumerate(sheet):
+        vals = nonempty(r)
+        if not vals:
+            continue
+        if r[0] == "Name" and len(vals) > 1:
+            header = r
+            continue
+        if r[0] is None or r[0] == "Subitems":
+            continue
+        if i in headings:
+            group = r[0]
+            continue
+        if header is None:
+            if title is None and len(vals) == 1:
+                title = r[0]
+            continue
+        if header is None:
+            continue
+        d = dict(zip(header, r + [None] * (len(header) - len(r))))
+        d["_group"] = group
+        rows.append(d)
+    return title, header or [], rows
+
+
+def _find(header, *preds):
+    for pred in preds:
+        for h in header:
+            if h and pred(str(h).strip().lower()):
+                return h
+    return None
+
+
+def read_projects(path):
+    _, header, rows = read_board(path)
+    st = _find(header, lambda h: h == "status")
+    start = _find(header, lambda h: "start" in h, lambda h: h in ("date", "timeline"))
+    end = _find(header, lambda h: "end" in h, lambda h: "due" in h)
+    out = []
+    for d in rows:
+        tl = d.get(start)
+        s_, e_ = to_date(tl), to_date(d.get(end)) if end else None
+        if isinstance(tl, str) and " to " in tl and not end:  # "2026-01-01 to 2026-06-30"
+            e_ = to_date(tl.split(" to ", 1)[1])
+        out.append({"name": catalog.clean(d.get("Name")), "status": d.get(st) if st else None,
+                    "start_date": s_, "end_date": e_})
+    return [p for p in out if p["name"]]
+
+
+def read_tasks(path):
+    _, header, rows = read_board(path)
+    st = _find(header, lambda h: h == "status")
+    pr = _find(header, lambda h: "project" in h)
+    return [{"name": catalog.clean(d.get("Name")), "status": d.get(st) if st else None,
+             "project": catalog.clean(d.get(pr)) if pr else None}
+            for d in rows if catalog.clean(d.get("Name"))]
+
+
 def tone(name, table, default):
     n = (name or "").lower()
     for k, v in table.items():
@@ -295,10 +409,45 @@ def tone(name, table, default):
     return default
 
 
-def write_config(ddir, data):
+def project_statuses(projects, tasks):
+    names = []
+    for x in list(projects) + list(tasks):
+        if x.get("status") and x["status"] not in names:
+            names.append(x["status"])
+    if not names:
+        return None
+    out = [dict(x) for x in app.DEFAULT_CONFIG["project_statuses"]]
+    have = {x["name"].lower() for x in out}
+    for n in names:
+        if n.lower() in have:
+            continue
+        t = tone(n, TONES_STATUS, "neutral")
+        if "ongoing" in n.lower():
+            t = "info"
+        out.append({"name": n, "tone": t})
+    order = {"neutral": 0, "warning": 1, "info": 2, "critical": 3, "success": 4}
+    return sorted(out, key=lambda x: order.get(x["tone"], 0))
+
+
+def write_config(ddir, data, catalog_statuses=None):
     path = os.path.join(ddir, "config.json")
     if os.path.exists(path):
+        if catalog_statuses:
+            with open(path) as f:
+                cfg = json.load(f)
+            if "project_statuses" not in cfg:
+                cfg["project_statuses"] = catalog_statuses
+                with open(path, "w") as f:
+                    json.dump(cfg, f, indent=2)
+                print("Added project statuses to %s" % path)
+                return
         print("Kept existing %s" % path)
+        return
+    if data is None:
+        if catalog_statuses:
+            with open(path, "w") as f:
+                json.dump({"project_statuses": catalog_statuses}, f, indent=2)
+            print("Wrote %s" % path)
         return
     items = data["items"]
     groups = []
@@ -329,6 +478,8 @@ def write_config(ddir, data):
     first = min((i["start_date"] for i in items if (i["start_date"] or "").startswith(last_year)), default=None)
     if first:
         cfg["history_year_from_month"] = int(first[5:7])
+    if catalog_statuses:
+        cfg["project_statuses"] = catalog_statuses
     with open(path, "w") as f:
         json.dump(cfg, f, indent=2)
     print("Wrote %s" % path)
@@ -365,45 +516,76 @@ def write_db(db_path, data):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("xlsx")
+    ap.add_argument("xlsx", nargs="?", help="the work board export (optional with --projects/--tasks)")
+    ap.add_argument("--projects", metavar="XLSX", help="export of the linked Projects board")
+    ap.add_argument("--tasks", metavar="XLSX", help="export of the linked Tasks board")
     ap.add_argument("--data", help="data folder (default ./data or $WORKSESSIONS_DATA)")
     ap.add_argument("--map", action="append", default=[], metavar='FIELD="Header"')
     ap.add_argument("--dry-run", action="store_true", help="only show what would be imported")
     ap.add_argument("--replace", action="store_true",
                     help="if a database exists, move it to backups/ and import fresh")
     args = ap.parse_args(argv)
+    if not (args.xlsx or args.projects or args.tasks):
+        ap.error("give a board export, and/or --projects / --tasks")
     overrides = {}
     for m in args.map:
         k, _, v = m.partition("=")
         if k not in FIELDS:
             sys.exit("--map: unknown field %r (choose from %s)" % (k, ", ".join(FIELDS)))
         overrides[k] = v.strip('"')
-    data = read_export(args.xlsx, overrides)
-    print("Board: %s" % data["title"])
-    print("Column mapping:")
-    for f in FIELDS:
-        print("  %-11s <- %s" % (f, data["mapping"].get(f, "(not found)")))
-    total = sum(it["tracked"] for it in data["items"]) / 3600
-    print("Found %d items in %d groups, %d timer sessions, %d notes, %d subitems (%.1f h tracked)." % (
-        len(data["items"]), len({i["group"] for i in data["items"]}), len(data["sessions"]),
-        len(data["notes"]), len(data["subitems"]), total))
-    if data["unmatched"]:
-        print("Note: %d time-tracking blocks could not be matched to an item: %s" % (
-            len(data["unmatched"]), ", ".join(data["unmatched"][:5])))
+    data = None
+    if args.xlsx:
+        data = read_export(args.xlsx, overrides)
+        print("Board: %s" % data["title"])
+        print("Column mapping:")
+        for f in FIELDS:
+            print("  %-11s <- %s" % (f, data["mapping"].get(f, "(not found)")))
+        total = sum(it["tracked"] for it in data["items"]) / 3600
+        print("Found %d items in %d groups, %d timer sessions, %d notes, %d subitems (%.1f h tracked)." % (
+            len(data["items"]), len({i["group"] for i in data["items"]}), len(data["sessions"]),
+            len(data["notes"]), len(data["subitems"]), total))
+        if data["unmatched"]:
+            print("Note: %d time-tracking blocks could not be matched to an item: %s" % (
+                len(data["unmatched"]), ", ".join(data["unmatched"][:5])))
+    projects = read_projects(args.projects) if args.projects else []
+    tasks = read_tasks(args.tasks) if args.tasks else []
+    if args.projects:
+        print("Projects board: %d projects" % len(projects))
+    if args.tasks:
+        linked = sum(1 for t in tasks if t["project"])
+        print("Tasks board: %d tasks (%d linked to a project)" % (len(tasks), linked))
+    if data and tasks:
+        known = {t["name"]: t["project"] for t in tasks}
+        differ = sum(1 for it in data["items"] if it["task"] in known and known[it["task"]]
+                     and it["project"] and known[it["task"]] != it["project"])
+        unknown = sorted({it["task"] for it in data["items"] if it["task"] and it["task"] not in known})
+        if differ:
+            print("Note: %d items have a project different from their task's project (kept as is)." % differ)
+        if unknown:
+            print("Note: %d tasks used by items aren't on the Tasks board; they'll be added: %s" % (
+                len(unknown), ", ".join(unknown[:5])))
     if args.dry_run:
         return
     ddir = app.data_dir(args.data)
     db_path = os.path.join(ddir, "worksessions.db")
-    if os.path.exists(db_path):
-        if not args.replace:
-            sys.exit("%s already exists. Use --replace to move it to backups/ and import fresh." % db_path)
-        os.makedirs(os.path.join(ddir, "backups"), exist_ok=True)
-        moved = os.path.join(ddir, "backups", "worksessions-before-import-%s.db" % app.now().strftime("%Y%m%d-%H%M%S"))
-        shutil.move(db_path, moved)
-        print("Moved the old database to %s" % moved)
-    write_db(db_path, data)
-    write_config(ddir, data)
-    print("Imported into %s. Start the app with:  python3 app.py" % db_path)
+    if data is not None:
+        if os.path.exists(db_path):
+            if not args.replace:
+                sys.exit("%s already exists. Use --replace to move it to backups/ and import fresh." % db_path)
+            os.makedirs(os.path.join(ddir, "backups"), exist_ok=True)
+            moved = os.path.join(ddir, "backups", "worksessions-before-import-%s.db" % app.now().strftime("%Y%m%d-%H%M%S"))
+            shutil.move(db_path, moved)
+            print("Moved the old database to %s" % moved)
+        write_db(db_path, data)
+    elif os.path.exists(db_path):
+        app.backup(db_path, ddir)
+    con = app.connect(db_path)
+    catalog.upsert(con, projects, tasks)
+    catalog.sync_from_items(con)
+    n_p, n_t = (con.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0] for t in ("projects", "tasks"))
+    con.close()
+    write_config(ddir, data, project_statuses(projects, tasks))
+    print("Imported into %s (%d projects, %d tasks). Start the app with:  python3 app.py" % (db_path, n_p, n_t))
 
 
 if __name__ == "__main__":

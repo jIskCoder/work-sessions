@@ -69,6 +69,29 @@ class AppTest(unittest.TestCase):
         csv = self.call("GET", "/api/export/items.csv")
         self.assertIn(b"Write report", csv)
 
+    def test_favicon_served(self):
+        for path, ctype in (("/favicon.ico", "image/png"), ("/static/favicon.svg", "image/svg+xml"),
+                            ("/static/favicon-32.png", "image/png"), ("/static/apple-touch-icon.png", "image/png")):
+            with urllib.request.urlopen(self.base + path) as r:
+                self.assertEqual((r.status, r.headers.get_content_type()), (200, ctype), path)
+                self.assertTrue(r.read())
+        with urllib.request.urlopen(self.base + "/") as r:
+            self.assertIn(b'rel="icon"', r.read())
+
+    def test_only_one_timer_at_a_time(self):
+        a = self.call("POST", "/api/items", {"name": "First"})
+        b = self.call("POST", "/api/items", {"name": "Second"})
+        self.call("POST", "/api/items/%s/start" % a["id"], {})
+        code, body = self.call_error("POST", "/api/items/%s/start" % b["id"], {})
+        self.assertEqual(code, 409)
+        self.assertEqual([r["id"] for r in body["running"]], [a["id"]])
+        self.assertEqual(body["running"][0]["name"], "First")
+        self.call("POST", "/api/items/%s/start" % a["id"], {})          # restarting the same one is fine
+        self.call("POST", "/api/items/%s/start" % b["id"], {"switch": True})
+        running = [s["item_id"] for s in self.call("GET", "/api/state")["sessions"] if s["end"] is None]
+        self.assertEqual(running, [b["id"]])
+        self.call("POST", "/api/items/%s/stop" % b["id"], {})
+
     def test_manual_session(self):
         it = self.call("POST", "/api/items", {"name": "Manual"})
         self.call("POST", "/api/items/%s/sessions" % it["id"],

@@ -49,6 +49,24 @@
     }
   ],
   "default_priority": "Low",
+  "project_statuses": [
+    {
+      "name": "Not started",
+      "tone": "neutral"
+    },
+    {
+      "name": "Working on it",
+      "tone": "warning"
+    },
+    {
+      "name": "Ongoing",
+      "tone": "info"
+    },
+    {
+      "name": "Done",
+      "tone": "success"
+    }
+  ],
   "report_basis": "start",
   "history_year_from_month": 1
 }

@@ -26,6 +26,9 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+import catalog
+import recurring
+
 __version__ = "1.0.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -57,6 +60,12 @@ DEFAULT_CONFIG = {
         {"name": "Low", "tone": "low"},
     ],
     "default_priority": "Low",
+    "project_statuses": [                # statuses for projects and tasks (Projects & tasks tab)
+        {"name": "Not started", "tone": "neutral"},
+        {"name": "Working on it", "tone": "warning"},
+        {"name": "Ongoing", "tone": "info"},
+        {"name": "Done", "tone": "success"},
+    ],
     "report_basis": "start",            # "start" (monday's dashboard rule) or "logged"
     "history_year_from_month": 1,       # first month shown on the previous-year chart (1-12)
 }
@@ -119,6 +128,8 @@ def connect(db_path):
     cols = [r[1] for r in con.execute("PRAGMA table_info(items)")]
     if "extra" not in cols:  # databases from v0
         con.execute("ALTER TABLE items ADD COLUMN extra TEXT")
+    catalog.init(con)
+    recurring.init(con)
     return con
 
 
@@ -167,8 +178,9 @@ def state(con, cfg):
     for it in items:
         it["notes"] = notes.get(it["id"], 0)
         it.pop("extra", None)
-    return {"items": items, "sessions": sessions, "groups": groups, "now": iso(now()),
-            "config": cfg, "version": __version__}
+    projects, tasks = catalog.listing(con)
+    return {"repeat_groups": recurring.enabled_groups(con), "items": items, "sessions": sessions, "groups": groups, "projects": projects, "tasks": tasks,
+            "now": iso(now()), "config": cfg, "version": __version__}
 
 
 def static_path(name):
@@ -283,11 +295,14 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             return self.static("index.html")
+        if path == "/favicon.ico":  # browsers ask for this by default
+            return self.static("favicon-32.png")
         if path.startswith("/static/"):
             return self.static(path[len("/static/"):])
         con = self.con
         with lock:
             if path == "/api/state":
+                recurring.run(con, self.cfg, new_id)  # first load of a new week fills repeating groups
                 return self.send(200, state(con, self.cfg))
             p = self.parts()
             if len(p) == 4 and p[:2] == ["api", "items"] and p[3] == "detail":
@@ -315,7 +330,8 @@ class Handler(BaseHTTPRequestHandler):
         if not fp or not os.path.isfile(fp):
             return self.send(404, {"error": "not found"})
         ctype = {"html": "text/html; charset=utf-8", "js": "application/javascript",
-                 "css": "text/css", "png": "image/png"}.get(fp.rsplit(".", 1)[-1], "application/octet-stream")
+                 "css": "text/css", "png": "image/png",
+                 "svg": "image/svg+xml"}.get(fp.rsplit(".", 1)[-1], "application/octet-stream")
         with open(fp, "rb") as f:
             self.send(200, f.read(), ctype)
 
@@ -341,6 +357,8 @@ class Handler(BaseHTTPRequestHandler):
                 vals["priority"] = vals["priority"] or cfg["default_priority"]
                 vals["start_date"] = vals["start_date"] or t.date().isoformat()
                 vals["start_hour"] = vals["start_hour"] or t.strftime("%H:%M")
+                links = catalog.link_item_fields(con, {k: data[k] for k in ("project", "task") if data.get(k)})
+                vals.update(links)
                 top = con.execute("SELECT COALESCE(MIN(position),0)-1 FROM items").fetchone()[0]
                 con.execute("INSERT INTO items(id,%s,tracked_offset,created,position) VALUES (?,%s,0,?,?)"
                             % (",".join(ITEM_FIELDS), ",".join("?" * len(ITEM_FIELDS))),
@@ -349,6 +367,20 @@ class Handler(BaseHTTPRequestHandler):
                             (vals["grp"],))
                 con.commit()
                 return self.send(200, item_row(con, iid))
+            if path in ("/api/projects", "/api/tasks"):
+                try:
+                    make = catalog.create_project if path == "/api/projects" else catalog.create_task
+                    return self.send(200, make(con, data))
+                except catalog.CatalogError as e:
+                    return self.send(e.code, {"error": e.message})
+            if path == "/api/groups/repeat":
+                name = (data.get("name") or "").strip()
+                if not con.execute("SELECT 1 FROM groups WHERE name=?", (name,)).fetchone():
+                    return self.send(404, {"error": "no such group"})
+                on = bool(data.get("enabled"))
+                recurring.set_enabled(con, name, on)
+                created = recurring.run(con, self.cfg, new_id, groups=[name]).get(name, 0) if on else 0
+                return self.send(200, {"ok": True, "enabled": on, "created": created})
             if path == "/api/groups":
                 name = (data.get("name") or "").strip()
                 if name:
@@ -363,6 +395,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(404, {"error": "no item"})
                 t = now()
                 if action == "start":
+                    # one timer at a time: refuse while another item's timer runs, unless asked to switch
+                    others = [dict(r) for r in con.execute(
+                        "SELECT s.item_id AS id, i.name, s.start FROM sessions s JOIN items i ON i.id=s.item_id "
+                        "WHERE s.end IS NULL AND s.item_id<>? ORDER BY s.start", (iid,))]
+                    if others and not data.get("switch"):
+                        return self.send(409, {"error": "another timer is running", "running": others})
+                    if others:
+                        con.execute("UPDATE sessions SET end=? WHERE end IS NULL AND item_id<>?", (iso(t), iid))
                     if not con.execute("SELECT 1 FROM sessions WHERE item_id=? AND end IS NULL", (iid,)).fetchone():
                         con.execute("INSERT INTO sessions(item_id,start,end) VALUES (?,?,NULL)", (iid, iso(t)))
                     if it["status"] in (None, "", cfg["default_status"]):
@@ -409,6 +449,10 @@ class Handler(BaseHTTPRequestHandler):
             if len(p) == 3 and p[:2] == ["api", "items"]:
                 iid = p[2]
                 sets = {f: data[f] for f in ITEM_FIELDS if f in data}
+                current = item_row(con, iid)
+                if current is None:
+                    return self.send(404, {"error": "no item"})
+                catalog.link_item_fields(con, sets, current)
                 if sets.get("status") and sets["status"] == cfg["done_status"]:
                     it = item_row(con, iid)
                     t = now()
@@ -424,6 +468,15 @@ class Handler(BaseHTTPRequestHandler):
                                     (sets["grp"],))
                     con.commit()
                 return self.send(200, item_row(con, iid))
+            if len(p) == 3 and p[:2] in (["api", "projects"], ["api", "tasks"]):
+                try:
+                    rid = int(p[2])
+                    fn = catalog.update_project if p[1] == "projects" else catalog.update_task
+                    return self.send(200, fn(con, rid, data))
+                except ValueError:
+                    return self.send(404, {"error": "not found"})
+                except catalog.CatalogError as e:
+                    return self.send(e.code, {"error": e.message})
             if len(p) == 3 and p[1] in ("sessions", "subitems"):
                 allowed = ("start", "end") if p[1] == "sessions" else ("name", "status", "date")
                 sets = {k: data[k] for k in allowed if k in data}
@@ -441,6 +494,15 @@ class Handler(BaseHTTPRequestHandler):
         p = self.parts()
         con = self.con
         with lock:
+            if len(p) == 3 and p[:2] in (["api", "projects"], ["api", "tasks"]):
+                try:
+                    fn = catalog.delete_project if p[1] == "projects" else catalog.delete_task
+                    fn(con, int(p[2]))
+                    return self.send(200, {"ok": True})
+                except ValueError:
+                    return self.send(404, {"error": "not found"})
+                except catalog.CatalogError as e:
+                    return self.send(e.code, {"error": e.message})
             if len(p) == 3 and p[1] in ("items", "sessions", "notes", "subitems"):
                 key = p[2]
                 if p[1] == "items":
@@ -499,6 +561,8 @@ def make_server(ddir, port=None, db_name="worksessions.db"):
     backup(db_path, ddir)
     con = connect(db_path)
     ensure_groups(con, cfg)
+    catalog.sync_from_items(con)
+    recurring.run(con, cfg, new_id)
     handler = type("BoundHandler", (Handler,), {"con": con, "cfg": cfg})
     srv = ThreadingHTTPServer(("127.0.0.1", port if port is not None else cfg["port"]), handler)
     return srv, cfg, con
