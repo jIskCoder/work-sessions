@@ -175,9 +175,10 @@ those tests are skipped.
 ### Continuous integration
 
 Every pull request and every push to `main` runs [`.github/workflows/tests.yml`](.github/workflows/tests.yml):
-the test suite with coverage (fails under 80%) on Ubuntu with Python 3.9, 3.12 and 3.13 and on
-macOS, plus `bash -n` and ShellCheck on the shell scripts. The HTML coverage report is attached
-to each run as an artifact. Run it by hand from the **Actions** tab.
+the test suite with coverage (fails under 80%) on Ubuntu with Python 3.9, 3.12 and 3.13 and on macOS.
+The coverage table appears on each run's summary page, and the HTML report is attached as an
+artifact. [`.github/workflows/shell.yml`](.github/workflows/shell.yml) runs `bash -n` and ShellCheck
+on the shell scripts, only when one of them changes. Run either by hand from the **Actions** tab.
 
 ## Acknowledgement
 
