@@ -22,17 +22,21 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.9", "3.12", "3.13"]
+        python: ["3.12", "3.13"]
         include:
+          # 3.9 = Apple's /usr/bin/python3, which the Dock launcher can fall back to.
+          # ubuntu-latest (26.04) has no 3.9 build, so test it on 24.04.
+          - os: ubuntu-24.04
+            python: "3.9"
           - os: macos-latest
             python: "3.13"
     env:
       TZ: Australia/Melbourne        # week boundaries and "today" match how the app is used
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -51,9 +55,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: python -m coverage html -d coverage-report
 
+      - name: Coverage summary on the run page
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage-report
@@ -64,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Syntax check
         run: for f in macos/*.sh start.sh "Start Work Sessions.command"; do bash -n "$f"; done
       - name: ShellCheck
