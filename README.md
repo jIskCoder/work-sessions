@@ -10,13 +10,22 @@ nothing but Python's standard library. Your data stays in one SQLite file.
 
 - **Board** grouped like monday — edit every field in place: name, group, start/end
   date and hour, priority, project, task, status.
-- **▶ / ■ timer** on every row; several can run at once. Live totals for today and this week.
+- **▶ / ■ timer** on every row — one at a time. Pressing ▶ while another timer runs shows that
+  item and asks whether to switch. The running timer is always shown in the header, with a stop
+  button. Live totals for today and this week.
+- **Day timeline:** every timer session for a day on a time axis, one row per item, coloured by
+  project. Gaps (5 min or more) are hatched and overlaps marked; click a gap to log time to an
+  item (or a new one), click a bar to edit that session.
 - **Views:** Main table · Today · This week · Last week · Next week · Last month · By task,
   with search and status / project filters.
 - **Projects & tasks:** each task belongs to a project, and choosing a task on an item fills in
   its project (like monday's linked Projects / Tasks boards). Type a new task or project name
   on any item to add it. The **Projects & tasks** tab manages the lists — project status and
   timeline, which project a task belongs to, renames (applied to every item), add and delete.
+- **Weekly repeating groups:** click **↻ Repeat weekly** on a group header (e.g. regular
+  meetings). At the start of each week its previous week's items are copied into the new
+  week — same day, time, project and task, not started, no tracked time. Names already in the
+  new week aren't duplicated, and each week is filled only once.
 - **Item details:** full time log (edit or add sessions by hand), subitems, notes,
   duplicate, delete, plus any extra columns brought in from an import.
 - **Report:** today / week / month totals, hours-by-project donuts for this week,

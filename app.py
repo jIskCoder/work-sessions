@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 import catalog
+import recurring
 
 __version__ = "1.0.0"
 
@@ -128,6 +129,7 @@ def connect(db_path):
     if "extra" not in cols:  # databases from v0
         con.execute("ALTER TABLE items ADD COLUMN extra TEXT")
     catalog.init(con)
+    recurring.init(con)
     return con
 
 
@@ -177,7 +179,7 @@ def state(con, cfg):
         it["notes"] = notes.get(it["id"], 0)
         it.pop("extra", None)
     projects, tasks = catalog.listing(con)
-    return {"items": items, "sessions": sessions, "groups": groups, "projects": projects, "tasks": tasks,
+    return {"repeat_groups": recurring.enabled_groups(con), "items": items, "sessions": sessions, "groups": groups, "projects": projects, "tasks": tasks,
             "now": iso(now()), "config": cfg, "version": __version__}
 
 
@@ -300,6 +302,7 @@ class Handler(BaseHTTPRequestHandler):
         con = self.con
         with lock:
             if path == "/api/state":
+                recurring.run(con, self.cfg, new_id)  # first load of a new week fills repeating groups
                 return self.send(200, state(con, self.cfg))
             p = self.parts()
             if len(p) == 4 and p[:2] == ["api", "items"] and p[3] == "detail":
@@ -370,6 +373,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, make(con, data))
                 except catalog.CatalogError as e:
                     return self.send(e.code, {"error": e.message})
+            if path == "/api/groups/repeat":
+                name = (data.get("name") or "").strip()
+                if not con.execute("SELECT 1 FROM groups WHERE name=?", (name,)).fetchone():
+                    return self.send(404, {"error": "no such group"})
+                on = bool(data.get("enabled"))
+                recurring.set_enabled(con, name, on)
+                created = recurring.run(con, self.cfg, new_id, groups=[name]).get(name, 0) if on else 0
+                return self.send(200, {"ok": True, "enabled": on, "created": created})
             if path == "/api/groups":
                 name = (data.get("name") or "").strip()
                 if name:
@@ -384,6 +395,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(404, {"error": "no item"})
                 t = now()
                 if action == "start":
+                    # one timer at a time: refuse while another item's timer runs, unless asked to switch
+                    others = [dict(r) for r in con.execute(
+                        "SELECT s.item_id AS id, i.name, s.start FROM sessions s JOIN items i ON i.id=s.item_id "
+                        "WHERE s.end IS NULL AND s.item_id<>? ORDER BY s.start", (iid,))]
+                    if others and not data.get("switch"):
+                        return self.send(409, {"error": "another timer is running", "running": others})
+                    if others:
+                        con.execute("UPDATE sessions SET end=? WHERE end IS NULL AND item_id<>?", (iso(t), iid))
                     if not con.execute("SELECT 1 FROM sessions WHERE item_id=? AND end IS NULL", (iid,)).fetchone():
                         con.execute("INSERT INTO sessions(item_id,start,end) VALUES (?,?,NULL)", (iid, iso(t)))
                     if it["status"] in (None, "", cfg["default_status"]):
@@ -543,6 +562,7 @@ def make_server(ddir, port=None, db_name="worksessions.db"):
     con = connect(db_path)
     ensure_groups(con, cfg)
     catalog.sync_from_items(con)
+    recurring.run(con, cfg, new_id)
     handler = type("BoundHandler", (Handler,), {"con": con, "cfg": cfg})
     srv = ThreadingHTTPServer(("127.0.0.1", port if port is not None else cfg["port"]), handler)
     return srv, cfg, con
