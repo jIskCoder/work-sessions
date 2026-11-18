@@ -1,5 +1,7 @@
 # Work Sessions
 
+[![Tests](https://github.com/jIskCoder/work-sessions/actions/workflows/tests.yml/badge.svg)](https://github.com/jIskCoder/work-sessions/actions/workflows/tests.yml)
+
 A small, free, self-hosted time-tracking board with a report dashboard — a local
 alternative to a monday.com time-tracking board. It runs on your own machine with
 nothing but Python's standard library. Your data stays in one SQLite file.
@@ -169,6 +171,13 @@ those tests are skipped.
 
 `app.py` is the whole server (standard-library `http.server` + `sqlite3`);
 `static/index.html` is the whole front end (vanilla JS + Chart.js, vendored under its MIT licence).
+
+### Continuous integration
+
+Every pull request and every push to `main` runs [`.github/workflows/tests.yml`](.github/workflows/tests.yml):
+the test suite with coverage (fails under 80%) on Ubuntu with Python 3.9, 3.12 and 3.13 and on
+macOS, plus `bash -n` and ShellCheck on the shell scripts. The HTML coverage report is attached
+to each run as an artifact. Run it by hand from the **Actions** tab.
 
 ## Acknowledgement
 

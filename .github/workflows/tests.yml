@@ -1,0 +1,71 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.9", "3.12", "3.13"]
+        include:
+          - os: macos-latest
+            python: "3.13"
+    env:
+      TZ: Australia/Melbourne        # week boundaries and "today" match how the app is used
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: |
+          python -m coverage run --source=app,catalog,recurring,import_monday,demo_data \
+            -m unittest discover -s tests -v
+          python -m coverage report --show-missing --fail-under=80
+
+      - name: Build HTML coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: python -m coverage html -d coverage-report
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+          retention-days: 14
+
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: for f in macos/*.sh start.sh "Start Work Sessions.command"; do bash -n "$f"; done
+      - name: ShellCheck
+        run: shellcheck -S warning macos/*.sh start.sh "Start Work Sessions.command"
