@@ -1,0 +1,33 @@
+name: Shell scripts
+
+# Only runs when a shell script (or this workflow) changes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "macos/*.sh"
+      - "start.sh"
+      - "Start Work Sessions.command"
+      - ".github/workflows/shell.yml"
+  pull_request:
+    paths:
+      - "macos/*.sh"
+      - "start.sh"
+      - "Start Work Sessions.command"
+      - ".github/workflows/shell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Syntax check
+        run: for f in macos/*.sh start.sh "Start Work Sessions.command"; do bash -n "$f"; done
+      - name: ShellCheck
+        run: shellcheck -S warning macos/*.sh start.sh "Start Work Sessions.command"

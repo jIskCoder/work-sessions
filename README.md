@@ -1,5 +1,7 @@
 # Work Sessions
 
+[![Tests](https://github.com/jIskCoder/work-sessions/actions/workflows/tests.yml/badge.svg)](https://github.com/jIskCoder/work-sessions/actions/workflows/tests.yml)
+
 A small, free, self-hosted time-tracking board with a report dashboard — a local
 alternative to a monday.com time-tracking board. It runs on your own machine with
 nothing but Python's standard library. Your data stays in one SQLite file.
@@ -72,12 +74,19 @@ Build a real app with its own icon that you can keep in the Dock:
 ./macos/make-mac-app.sh          # creates ~/Applications/Work Sessions.app
 ```
 
-To pin it, open `~/Applications` in Finder (**Go → Go to Folder…** → `~/Applications`) and
-drag **Work Sessions** onto the Dock. (It has no running Dock icon to right-click: it opens
-the browser and quits straight away, leaving the server running in the background.)
-Clicking it starts the server in the background (if it isn't already running) and opens
-the board in your browser — no Terminal window. The server keeps running until you log
-out or run `./macos/stop.sh`; its output goes to `data/app.log`. Rebuilding keeps the
+Open it once from `~/Applications` (in Finder, **Go → Go to Folder…** → `~/Applications`),
+then right-click its Dock icon → **Options → Keep in Dock**. It behaves like other apps:
+
+- Opening it starts the server (if it isn't already running) and shows the board in your
+  browser — an already-open Work Sessions tab is brought to the front rather than opening
+  another. No Terminal window.
+- A dot under the Dock icon means it's running; clicking the icon shows the board again.
+- **Quit** (Dock menu or ⌘Q) stops the server. If the server stops some other way
+  (`./macos/stop.sh`, a crash), the app quits by itself within 30 seconds.
+- The first time, macOS asks whether Work Sessions may control your browser — that's what
+  lets it switch to the open tab (Safari and Chromium-based browsers).
+
+Server output goes to `data/app.log`. Rebuilding keeps the
 previous app in `data/previous-builds/` as `*.app.previous` (git-ignored, and not treated
 as an app by macOS — rename it to `Work Sessions.app` to restore it). If you move the
 repo, run the script again.
@@ -176,6 +185,14 @@ those tests are skipped.
 
 `app.py` is the whole server (standard-library `http.server` + `sqlite3`);
 `static/index.html` is the whole front end (vanilla JS + Chart.js, vendored under its MIT licence).
+
+### Continuous integration
+
+Every pull request and every push to `main` runs [`.github/workflows/tests.yml`](.github/workflows/tests.yml):
+the test suite with coverage (fails under 80%) on Ubuntu with Python 3.9, 3.12 and 3.13 and on macOS.
+The coverage table appears on each run's summary page, and the HTML report is attached as an
+artifact. [`.github/workflows/shell.yml`](.github/workflows/shell.yml) runs `bash -n` and ShellCheck
+on the shell scripts, only when one of them changes. Run either by hand from the **Actions** tab.
 
 ## Acknowledgement
 
