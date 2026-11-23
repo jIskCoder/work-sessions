@@ -19,7 +19,9 @@ nothing but Python's standard library. Your data stays in one SQLite file.
   project. Gaps (5 min or more) are hatched and overlaps marked; click a gap to log time to an
   item (or a new one), click a bar to edit that session.
 - **Views:** Main table · Today · This week · Last week · Next week · Last month · By task,
-  with search and status / project filters.
+  with search and status / project filters. A period tab shows items that started *or* had
+  time logged in that period; **This week** also carries over every open item until it's
+  Done, and **Today** shows the same open items (Done hidden).
 - **Projects & tasks:** each task belongs to a project, and choosing a task on an item fills in
   its project (like monday's linked Projects / Tasks boards). Type a new task or project name
   on any item to add it. The **Projects & tasks** tab manages the lists — project status and
@@ -28,13 +30,18 @@ nothing but Python's standard library. Your data stays in one SQLite file.
   meetings). At the start of each week its previous week's items are copied into the new
   week — same day, time, project and task, not started, no tracked time. Names already in the
   new week aren't duplicated, and each week is filled only once.
+- **Merge items:** tick the checkbox on two or more rows (across groups and tabs), then
+  **Merge…** in the bar at the bottom and choose the item to keep. It gets all the others'
+  timer sessions, notes, subitems and tracked time, and its dates span them all (earliest
+  start, latest end); the others are removed. A backup of the database is saved to
+  `data/backups/` first.
 - **Item details:** full time log (edit or add sessions by hand), subitems, notes,
   duplicate, delete, plus any extra columns brought in from an import.
 - **Report:** today / week / month totals, hours-by-project donuts for this week,
   last week, this month and last month, month-by-month stacked bars for this year and
   last year, and a table view.
-  Switch between counting a task's whole time in the period its *start date* falls in
-  (monday.com's dashboard rule) or counting each session on the day it was *logged*.
+  By default each timer session counts on the day it was *logged*; you can switch to counting
+  a task's whole time in the period its *start date* falls in (monday.com's dashboard rule).
 - **Import** any monday.com board exported to Excel, including the time-tracking log,
   updates and subitems — columns are detected automatically.
 - **CSV export** of items and of the full time log. Daily database backups.
@@ -142,7 +149,7 @@ for every option). Anything you leave out uses the default.
 | `default_status`, `start_status`, `done_status` | New items; set when a timer starts; marks done (stops timers, stamps end date) |
 | `priorities`, `default_priority` | `[{"name", "tone"}]` — tone is `critical`, `high`, `moderate` or `low` |
 | `project_statuses` | Statuses for projects and tasks — tone adds `info` to the status tones |
-| `report_basis` | Default report rule: `"start"` or `"logged"` |
+| `report_basis` | Default report rule: `"logged"` (default) or `"start"` |
 | `history_year_from_month` | First month on the previous-year chart (1–12) |
 
 ## Your data

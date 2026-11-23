@@ -205,6 +205,21 @@ tr.flash td{animation:flashrow .7s ease 4}
 .gapform{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0;padding:10px;border:1px solid var(--accent);border-radius:8px;background:var(--surface)}
 .gapform input{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:4px 7px}
 .gapform input[list]{flex:1;min-width:220px}
+.c-sel{width:34px;text-align:center}
+.c-sel input{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+tr.sel td{background:color-mix(in srgb,var(--accent) 10%,transparent)!important}
+.selbar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:45;display:flex;gap:12px;align-items:center;background:var(--text);color:var(--surface);padding:8px 10px 8px 16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-size:13.5px;max-width:calc(100% - 32px);flex-wrap:wrap}
+.selbar .btn{background:var(--surface);color:var(--text);border-color:transparent}
+.selbar .btn.primary{background:var(--accent);color:#fff}
+.selbar .btn[disabled]{opacity:.5;cursor:not-allowed}
+.mergebox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:75;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:18px;width:min(620px,calc(100% - 32px));max-height:calc(100vh - 60px);overflow:auto}
+.mergebox h3{margin:0 0 6px;font-size:16px}
+.mergebox p{margin:6px 0 12px;color:var(--text-2);font-size:13.5px}
+.mergebox label{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer}
+.mergebox label:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.mergebox label small{display:block;color:var(--text-3)}
+.mergebox .num{font-variant-numeric:tabular-nums;color:var(--text-2)}
+.mergebox .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:8px 14px;border-radius:8px;z-index:60;font-size:13px}
 @media (max-width:700px){.bar,.toolbar,main{padding-left:16px;padding-right:16px}.live{margin-left:0}input.search{width:100%}}
 </style>
@@ -262,7 +277,7 @@ const L=k=>(CFG.labels&&CFG.labels[k])||k;
 const PAGE=40;
 let S={items:[],sessions:[],groups:[]};
 let view='main', basis=null, expanded={}, shown={}, charts=[];
-try{view=localStorage.getItem('ws.view')||'main';basis=localStorage.getItem('ws.basis');expanded=JSON.parse(localStorage.getItem('ws.expanded')||'{}')}catch(e){}
+try{view=localStorage.getItem('ws.view')||'main';basis=localStorage.getItem('ws.reportBasis');expanded=JSON.parse(localStorage.getItem('ws.expanded')||'{}')}catch(e){}
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -346,12 +361,17 @@ function filtered(){
     if(hide&&(it.grp===CFG.done_status||it.grp==='Done'))return false;
     if(missing&&it.project&&it.task)return false;
     if(rng){
-      if(view==='today'){ // open items starting this week; a running timer always shows so it can be stopped
-        if(running.has(it.id))return true;
+      const inRange=(d,r)=>!!d&&d>=r[0]&&d<=r[1];
+      const logged=r=>(byItem.get(it.id)||[]).some(x=>inRange(x.start.slice(0,10),r));
+      const open=it.status!==CFG.done_status;
+      if(view==='today'){ // every open item up to this week (carried over until Done), or with time logged this week
+        if(running.has(it.id))return true;   // a running timer always shows so it can be stopped
         const w=R.thisweek;
-        return it.status!==CFG.done_status&&!!it.start_date&&it.start_date>=w[0]&&it.start_date<=w[1];
+        return open&&(!it.start_date||it.start_date<=w[1]||logged(w));
       }
-      return it.start_date&&it.start_date>=rng[0]&&it.start_date<=rng[1];
+      if(view==='thisweek') // started or logged this week, plus open items carried over until Done
+        return inRange(it.start_date,rng)||logged(rng)||(open&&(!it.start_date||it.start_date<=rng[1]));
+      return inRange(it.start_date,rng)||logged(rng);   // other periods: started or logged then
     }
     return true;
   });
@@ -361,7 +381,8 @@ const stClass=s=>s&&TONE['s:'+s]?'t-'+TONE['s:'+s]:'';
 const prClass=p=>p&&TONE['p:'+p]?'t-'+TONE['p:'+p]:'';
 function rowHTML(it){
   const run=running.has(it.id);
-  return `<tr data-id="${esc(it.id)}">
+  return `<tr data-id="${esc(it.id)}"${selected.has(it.id)?' class="sel"':''}>
+   <td class="c-sel"><input type="checkbox" data-sel ${selected.has(it.id)?'checked':''} aria-label="Select ${esc(it.name)}"></td>
    <td class="c-more"><button class="more" data-act="open" aria-label="Details, time log and notes">⋯${it.notes?`<span class="badge">${it.notes}</span>`:''}</button></td>
    <td class="c-timer"><div class="timer ${run?'running':''}"><button class="play ${run?'running':''}" data-act="${run?'stop':'start'}" aria-label="${run?'Stop timer':'Start timer'}">${run?'<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>':'<svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4z"/></svg>'}</button><span data-tt>${fmtHMS(tracked(it))}</span></div></td>
    <td class="c-name"><input data-f="name" value="${esc(it.name)}" aria-label="Item name"></td>
@@ -387,14 +408,14 @@ function renderTable(){
   const period=['today','thisweek','lastweek','nextweek','lastmonth'].includes(view);
   if(period)for(const k of keys)map.get(k).sort((a,b)=>(b.start_date||'').localeCompare(a.start_date||'')||(b.start_hour||'').localeCompare(a.start_hour||''));
   if(!keys.length){$('#main').innerHTML='<p class="empty">No items match. Try clearing the search or filters.</p>';return}
-  const now=new Date();
+  const now=new Date();groupIds={};for(const k of keys)groupIds[view+'|'+k]=map.get(k).map(i=>i.id);
   $('#main').innerHTML=keys.map((k,gi)=>{
     const list=map.get(k), key=view+'|'+k;
     const open=expanded[key]??(period||view==='bytask'?gi<6:(k===CFG.default_group||gi===0));
     const n=shown[key]||PAGE; const tot=list.reduce((a,it)=>a+tracked(it,now),0);
     return `<section class="group" data-key="${esc(key)}">
       <div class="ghead" role="button" tabindex="0" aria-expanded="${open}"><svg class="chev" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><h2>${esc(k)}</h2><span class="meta">${list.length} items · ${fmtHM(tot)} tracked</span>${view!=='bytask'&&S.groups.includes(k)?`<button class="repeat${(S.repeat_groups||[]).includes(k)?' on':''}" data-repeat="${esc(k)}" aria-pressed="${(S.repeat_groups||[]).includes(k)}" title="Copy last week's items in this group into each new week">↻ ${(S.repeat_groups||[]).includes(k)?'Repeats weekly':'Repeat weekly'}</button>`:''}</div>
-      ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th aria-label="Details"></th><th>Time tracking</th><th>Item</th><th>Group</th><th>Start date</th><th>Start hour</th><th>Priority</th><th>End date</th><th>End hour</th><th>${esc(L('project'))}</th><th>${esc(L('task'))}</th><th>Status</th></tr></thead>
+      ${open?`<div class="tablewrap"><table class="grid"><thead><tr><th class="c-sel"><input type="checkbox" data-selall ${list.every(i=>selected.has(i.id))?'checked':''} aria-label="Select all items in ${esc(k)}"></th><th aria-label="Details"></th><th>Time tracking</th><th>Item</th><th>Group</th><th>Start date</th><th>Start hour</th><th>Priority</th><th>End date</th><th>End hour</th><th>${esc(L('project'))}</th><th>${esc(L('task'))}</th><th>Status</th></tr></thead>
       <tbody>${list.slice(0,n).map(rowHTML).join('')}</tbody></table></div>
       ${list.length>n?`<button class="btn small showmore" data-more="${esc(key)}">Show ${Math.min(PAGE*5,list.length-n)} more of ${list.length-n}</button>`:''}`:''}
     </section>`}).join('');
@@ -420,8 +441,8 @@ function renderDash(){
   $('#main').innerHTML=`<div class="dash">
    <div class="dashbar"><span class="hint">Count hours by</span>
      <div class="seg" role="group" aria-label="How hours are counted">
-       <button data-b="start" aria-pressed="${basis==='start'}">Task start date</button>
-       <button data-b="logged" aria-pressed="${basis==='logged'}">When time was logged</button></div>
+       <button data-b="logged" aria-pressed="${basis==='logged'}">When time was logged</button>
+       <button data-b="start" aria-pressed="${basis==='start'}">Task start date</button></div>
      <span class="hint">${basis==='start'?'A task’s whole tracked time counts in the period its start date falls in — the same rule monday.com dashboards use.':'Each timer session counts on the day it was recorded — more accurate for long-running tasks.'}</span></div>
    <div class="tiles">${tiles.map(([l,k])=>`<div class="tile"><div class="k">${l}</div><div class="v">${(loggedBetween(...R[k])/3600).toFixed(1)}h</div><div class="s">${fmtDay(R[k][0])}${R[k][0]!==R[k][1]?' – '+fmtDay(R[k][1]):''} · time logged</div></div>`).join('')}</div>
    <div class="cards">${pies.map(([l,k],i)=>`<div class="card"><h3>Hours by ${esc(L('project').toLowerCase())} · ${l}</h3><div class="sub">${fmtDay(R[k][0])} – ${fmtDay(R[k][1])}</div><div class="donutwrap"><canvas id="pie${i}" role="img" aria-label="Hours by project, ${l}"></canvas></div><ul class="legend" id="lg${i}"></ul></div>`).join('')}</div>
@@ -430,7 +451,7 @@ function renderDash(){
      <div class="card wide"><h3>Hours spent ${yr-1}${fromM>0?' (from '+months[fromM]+')':''}</h3><div class="sub">By month, stacked by ${esc(L('project').toLowerCase())}</div><div class="barwrap"><canvas id="bar1" role="img" aria-label="Hours by month ${yr-1}"></canvas></div></div>
      <div class="card wide"><h3>Table view</h3><div class="sub">Hours by ${esc(L('project').toLowerCase())} for each period</div><div style="overflow-x:auto" id="sumtbl"></div></div>
    </div></div>`;
-  $('#main').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{basis=b.dataset.b;try{localStorage.setItem('ws.basis',basis)}catch(e){};renderDash()});
+  $('#main').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{basis=b.dataset.b;try{localStorage.setItem('ws.reportBasis',basis)}catch(e){};renderDash()});
   const text=css('--text-2'),grid=css('--line'),surface=css('--surface');
   Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;Chart.defaults.color=text;
   const tip={backgroundColor:css('--text'),titleColor:surface,bodyColor:surface,padding:8,cornerRadius:6,displayColors:true,boxPadding:4};
@@ -549,6 +570,61 @@ $('#main').addEventListener('change',async e=>{
     if(!await catCall('PATCH',`/api/tasks/${tr.dataset.tid}`,{[tf]:val})){await load(false);return renderCatalog()}}
   await load(false);renderCatalog();
 });
+
+/* ---------- select & merge ---------- */
+const selected=new Set(); let groupIds={};
+function renderSelBar(){
+  let bar=$('#selbar');
+  for(const id of [...selected])if(!S.items.some(i=>i.id===id))selected.delete(id);
+  if(!selected.size){if(bar)bar.remove();return}
+  if(!bar){bar=document.createElement('div');bar.id='selbar';bar.className='selbar';bar.setAttribute('role','region');bar.setAttribute('aria-label','Selected items');document.body.appendChild(bar)}
+  const nowD=new Date(),tot=[...selected].reduce((x,id)=>{const it=S.items.find(i=>i.id===id);return x+(it?tracked(it,nowD):0)},0);
+  bar.innerHTML=`<span><b>${selected.size}</b> selected · ${fmtHM(tot)} tracked</span>
+    <button class="btn small primary" data-merge ${selected.size<2?'disabled title="Select at least two items"':''}>Merge…</button>
+    <button class="btn small" data-selclear>Clear</button>`;
+  bar.querySelector('[data-selclear]').onclick=()=>{selected.clear();renderSelBar();if(!['dash','catalog','timeline'].includes(view))renderTable()};
+  bar.querySelector('[data-merge]').onclick=openMerge;
+}
+$('#main').addEventListener('change',e=>{
+  if(e.target.matches('[data-sel]')){const tr=e.target.closest('tr');const id=tr.dataset.id;
+    e.target.checked?selected.add(id):selected.delete(id);tr.classList.toggle('sel',e.target.checked);renderSelBar();
+    const sec=tr.closest('section');const all=sec&&sec.querySelector('[data-selall]');if(all)all.checked=(groupIds[sec.dataset.key]||[]).every(i=>selected.has(i));return}
+  if(e.target.matches('[data-selall]')){const sec=e.target.closest('section');const ids=groupIds[sec.dataset.key]||[];
+    ids.forEach(id=>e.target.checked?selected.add(id):selected.delete(id));renderTable();renderSelBar()}
+});
+function closeMerge(){document.querySelectorAll('.mergebox,.mergescrim').forEach(n=>n.remove());document.removeEventListener('keydown',mergeKey)}
+function mergeKey(e){if(e.key==='Escape')closeMerge()}
+function openMerge(){
+  if(selected.size<2)return;
+  const nowD=new Date();
+  const items=[...selected].map(id=>S.items.find(i=>i.id===id)).filter(Boolean).sort((a,b)=>(a.start_date||'').localeCompare(b.start_date||'')||(a.start_hour||'').localeCompare(b.start_hour||''));
+  const secs=new Map(items.map(it=>[it.id,tracked(it,nowD)]));
+  const nSess=id=>S.sessions.filter(x=>x.item_id===id).length;
+  let keep=items.reduce((a,b)=>secs.get(b.id)>secs.get(a.id)?b:a).id;   // default: the item with the most time
+  const total=[...secs.values()].reduce((x,y)=>x+y,0);
+  closeMerge();
+  const sc=document.createElement('div');sc.className='scrim mergescrim';sc.onclick=closeMerge;
+  const box=document.createElement('div');box.className='mergebox';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Merge items');
+  box.innerHTML=`<h3>Merge ${items.length} items</h3>
+    <p>Choose the item to keep. It keeps its own name, group, ${esc(L('project'))}, ${esc(L('task'))} and status, gets all the time sessions, notes and subitems of the others, and its dates span them all: the earliest start and the latest end. The other ${items.length-1} item${items.length===2?' is':'s are'} then removed. A backup of your data is saved first.</p>
+    ${items.map(it=>`<label><input type="radio" name="keep" value="${esc(it.id)}" ${it.id===keep?'checked':''}>
+       <span>${esc(it.name)}<small>${esc([it.grp,it.start_date?fmtDay(it.start_date):'',it.project,it.task].filter(Boolean).join(' · '))}</small></span>
+       <span class="num">${fmtHM(secs.get(it.id))} · ${nSess(it.id)} session${nSess(it.id)===1?'':'s'}</span></label>`).join('')}
+    <p style="margin-top:10px">Combined time: <b>${fmtHM(total)}</b> in ${items.reduce((x,it)=>x+nSess(it.id),0)} sessions.</p>
+    <div class="row"><button class="btn" data-mcancel>Cancel</button><button class="btn primary" data-mgo></button></div>`;
+  document.body.append(sc,box);
+  const go=box.querySelector('[data-mgo]');
+  const label=()=>{const it=items.find(i=>i.id===keep);go.textContent=`Merge into “${it.name.length>40?it.name.slice(0,40)+'…':it.name}”`};label();
+  box.querySelectorAll('input[name=keep]').forEach(r=>r.onchange=()=>{keep=r.value;label()});
+  box.querySelector('[data-mcancel]').onclick=closeMerge;
+  go.onclick=async()=>{go.disabled=true;
+    const sources=items.map(i=>i.id).filter(id=>id!==keep);
+    const r=await api('POST','/api/items/merge',{target:keep,sources});
+    closeMerge();selected.clear();await load();
+    toast(`Merged ${r.merged} item${r.merged===1?'':'s'} into “${r.item.name}”. Backup saved.`);
+    const tr=document.querySelector(`tr[data-id="${CSS.escape(keep)}"]`);if(tr){tr.scrollIntoView({block:'center'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),3000)}};
+  box.querySelector('input[name=keep]:checked').focus();document.addEventListener('keydown',mergeKey);
+}
 
 /* ---------- one timer at a time ---------- */
 function renderNowRunning(){
@@ -773,7 +849,7 @@ async function load(doRender=true){
   {const cur=$('#fStatus').value;$('#fStatus').innerHTML='<option value="">All statuses</option>'+STATUSES.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')}
   $('#fMissingLbl').textContent=`Missing ${L('project')} or ${L('task')}`;
   $('#q').placeholder=`Search items, ${L('project').toLowerCase()}, ${L('task').toLowerCase()}`;
-  index();assignColors();fillLists();renderNowRunning();
+  index();assignColors();fillLists();renderNowRunning();renderSelBar();
   if(doRender)render();
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(view==='dash')renderDash()});

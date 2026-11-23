@@ -92,6 +92,61 @@ class AppTest(unittest.TestCase):
         self.assertEqual(running, [b["id"]])
         self.call("POST", "/api/items/%s/stop" % b["id"], {})
 
+    def test_merge_items(self):
+        keep = self.call("POST", "/api/items", {"name": "Keep me", "project": "Ops", "task": "Patching"})
+        a = self.call("POST", "/api/items", {"name": "Dup A"})
+        b = self.call("POST", "/api/items", {"name": "Dup B"})
+        for iid, start, end in ((keep["id"], "09:00", "10:00"), (a["id"], "11:00", "11:30"), (b["id"], "13:00", "13:15")):
+            self.call("POST", "/api/items/%s/sessions" % iid, {"start": "2026-02-02T%s:00" % start,
+                                                                "end": "2026-02-02T%s:00" % end})
+        self.call("POST", "/api/items/%s/notes" % a["id"], {"body": "note on A"})
+        self.call("POST", "/api/items/%s/subitems" % b["id"], {"name": "sub of B"})
+        self.con.execute("UPDATE items SET tracked_offset=600 WHERE id=?", (b["id"],))  # time carried over from monday
+        self.con.commit()
+        r = self.call("POST", "/api/items/merge", {"target": keep["id"], "sources": [a["id"], b["id"], keep["id"]]})
+        self.assertEqual(r["merged"], 2)
+        self.assertTrue(r["backup"].startswith("worksessions-before-merge-"))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "backups", r["backup"])))
+        self.assertEqual((r["item"]["name"], r["item"]["project"], r["item"]["tracked_offset"]), ("Keep me", "Ops", 600))
+        d = self.call("GET", "/api/items/%s/detail" % keep["id"])
+        self.assertEqual(len(d["sessions"]), 3)
+        self.assertEqual(len(d["subitems"]), 1)
+        bodies = [n["body"] for n in d["notes"]]
+        self.assertIn("note on A", bodies)
+        self.assertIn("Merged in: Dup A; Dup B", bodies)
+        ids = {i["id"] for i in self.call("GET", "/api/state")["items"]}
+        self.assertNotIn(a["id"], ids)
+        self.assertNotIn(b["id"], ids)
+        # errors
+        self.assertEqual(self.call_error("POST", "/api/items/merge", {"target": keep["id"], "sources": ["nope"]})[0], 404)
+        self.assertEqual(self.call_error("POST", "/api/items/merge", {"target": keep["id"], "sources": [keep["id"]]})[0], 400)
+        self.assertEqual(self.call_error("POST", "/api/items/merge", {"target": keep["id"]})[0], 400)
+
+    def test_merge_spans_dates(self):
+        keep = self.call("POST", "/api/items", {"name": "K", "start_date": "2026-04-10", "start_hour": "09:00"})
+        early = self.call("POST", "/api/items", {"name": "E", "start_date": "2026-04-03", "start_hour": "14:30"})
+        same_day = self.call("POST", "/api/items", {"name": "S", "start_date": "2026-04-03", "start_hour": "08:15"})
+        self.call("PATCH", "/api/items/%s" % keep["id"], {"end_date": "2026-04-11", "end_hour": "17:00"})
+        self.call("PATCH", "/api/items/%s" % early["id"], {"end_date": "2026-04-20", "end_hour": "10:00"})
+        r = self.call("POST", "/api/items/merge", {"target": keep["id"], "sources": [early["id"], same_day["id"]]})["item"]
+        self.assertEqual((r["start_date"], r["start_hour"]), ("2026-04-03", "08:15"))
+        self.assertEqual((r["end_date"], r["end_hour"]), ("2026-04-20", "10:00"))
+        # no end dates anywhere: end stays empty
+        a = self.call("POST", "/api/items", {"name": "A", "start_date": "2026-05-02"})
+        b = self.call("POST", "/api/items", {"name": "B", "start_date": "2026-05-01"})
+        r = self.call("POST", "/api/items/merge", {"target": a["id"], "sources": [b["id"]]})["item"]
+        self.assertEqual((r["start_date"], r["end_date"]), ("2026-05-01", None))
+
+    def test_merge_keeps_one_running_timer(self):
+        x = self.call("POST", "/api/items", {"name": "X"})
+        y = self.call("POST", "/api/items", {"name": "Y"})
+        self.call("POST", "/api/items/%s/sessions" % x["id"], {"start": "2026-03-01T09:00:00"})   # still running
+        self.call("POST", "/api/items/%s/sessions" % y["id"], {"start": "2026-03-01T09:30:00"})   # still running
+        self.call("POST", "/api/items/merge", {"target": x["id"], "sources": [y["id"]]})
+        open_ = [s for s in self.call("GET", "/api/state")["sessions"] if s["item_id"] == x["id"] and s["end"] is None]
+        self.assertEqual([s["start"] for s in open_], ["2026-03-01T09:00:00"])
+        self.call("POST", "/api/items/%s/stop" % x["id"], {})
+
     def test_manual_session(self):
         it = self.call("POST", "/api/items", {"name": "Manual"})
         self.call("POST", "/api/items/%s/sessions" % it["id"],
