@@ -17,7 +17,9 @@ nothing but Python's standard library. Your data stays in one SQLite file.
   project. Gaps (5 min or more) are hatched and overlaps marked; click a gap to log time to an
   item (or a new one), click a bar to edit that session.
 - **Views:** Main table · Today · This week · Last week · Next week · Last month · By task,
-  with search and status / project filters.
+  with search and status / project filters. A period tab shows items that started *or* had
+  time logged in that period; **This week** also carries over every open item until it's
+  Done, and **Today** shows the same open items (Done hidden).
 - **Projects & tasks:** each task belongs to a project, and choosing a task on an item fills in
   its project (like monday's linked Projects / Tasks boards). Type a new task or project name
   on any item to add it. The **Projects & tasks** tab manages the lists — project status and

@@ -361,12 +361,17 @@ function filtered(){
     if(hide&&(it.grp===CFG.done_status||it.grp==='Done'))return false;
     if(missing&&it.project&&it.task)return false;
     if(rng){
-      if(view==='today'){ // open items starting this week; a running timer always shows so it can be stopped
-        if(running.has(it.id))return true;
+      const inRange=(d,r)=>!!d&&d>=r[0]&&d<=r[1];
+      const logged=r=>(byItem.get(it.id)||[]).some(x=>inRange(x.start.slice(0,10),r));
+      const open=it.status!==CFG.done_status;
+      if(view==='today'){ // every open item up to this week (carried over until Done), or with time logged this week
+        if(running.has(it.id))return true;   // a running timer always shows so it can be stopped
         const w=R.thisweek;
-        return it.status!==CFG.done_status&&!!it.start_date&&it.start_date>=w[0]&&it.start_date<=w[1];
+        return open&&(!it.start_date||it.start_date<=w[1]||logged(w));
       }
-      return it.start_date&&it.start_date>=rng[0]&&it.start_date<=rng[1];
+      if(view==='thisweek') // started or logged this week, plus open items carried over until Done
+        return inRange(it.start_date,rng)||logged(rng)||(open&&(!it.start_date||it.start_date<=rng[1]));
+      return inRange(it.start_date,rng)||logged(rng);   // other periods: started or logged then
     }
     return true;
   });
