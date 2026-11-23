@@ -67,6 +67,6 @@
       "tone": "success"
     }
   ],
-  "report_basis": "start",
+  "report_basis": "logged",
   "history_year_from_month": 1
 }

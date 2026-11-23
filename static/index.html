@@ -277,7 +277,7 @@ const L=k=>(CFG.labels&&CFG.labels[k])||k;
 const PAGE=40;
 let S={items:[],sessions:[],groups:[]};
 let view='main', basis=null, expanded={}, shown={}, charts=[];
-try{view=localStorage.getItem('ws.view')||'main';basis=localStorage.getItem('ws.basis');expanded=JSON.parse(localStorage.getItem('ws.expanded')||'{}')}catch(e){}
+try{view=localStorage.getItem('ws.view')||'main';basis=localStorage.getItem('ws.reportBasis');expanded=JSON.parse(localStorage.getItem('ws.expanded')||'{}')}catch(e){}
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -436,8 +436,8 @@ function renderDash(){
   $('#main').innerHTML=`<div class="dash">
    <div class="dashbar"><span class="hint">Count hours by</span>
      <div class="seg" role="group" aria-label="How hours are counted">
-       <button data-b="start" aria-pressed="${basis==='start'}">Task start date</button>
-       <button data-b="logged" aria-pressed="${basis==='logged'}">When time was logged</button></div>
+       <button data-b="logged" aria-pressed="${basis==='logged'}">When time was logged</button>
+       <button data-b="start" aria-pressed="${basis==='start'}">Task start date</button></div>
      <span class="hint">${basis==='start'?'A task’s whole tracked time counts in the period its start date falls in — the same rule monday.com dashboards use.':'Each timer session counts on the day it was recorded — more accurate for long-running tasks.'}</span></div>
    <div class="tiles">${tiles.map(([l,k])=>`<div class="tile"><div class="k">${l}</div><div class="v">${(loggedBetween(...R[k])/3600).toFixed(1)}h</div><div class="s">${fmtDay(R[k][0])}${R[k][0]!==R[k][1]?' – '+fmtDay(R[k][1]):''} · time logged</div></div>`).join('')}</div>
    <div class="cards">${pies.map(([l,k],i)=>`<div class="card"><h3>Hours by ${esc(L('project').toLowerCase())} · ${l}</h3><div class="sub">${fmtDay(R[k][0])} – ${fmtDay(R[k][1])}</div><div class="donutwrap"><canvas id="pie${i}" role="img" aria-label="Hours by project, ${l}"></canvas></div><ul class="legend" id="lg${i}"></ul></div>`).join('')}</div>
@@ -446,7 +446,7 @@ function renderDash(){
      <div class="card wide"><h3>Hours spent ${yr-1}${fromM>0?' (from '+months[fromM]+')':''}</h3><div class="sub">By month, stacked by ${esc(L('project').toLowerCase())}</div><div class="barwrap"><canvas id="bar1" role="img" aria-label="Hours by month ${yr-1}"></canvas></div></div>
      <div class="card wide"><h3>Table view</h3><div class="sub">Hours by ${esc(L('project').toLowerCase())} for each period</div><div style="overflow-x:auto" id="sumtbl"></div></div>
    </div></div>`;
-  $('#main').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{basis=b.dataset.b;try{localStorage.setItem('ws.basis',basis)}catch(e){};renderDash()});
+  $('#main').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{basis=b.dataset.b;try{localStorage.setItem('ws.reportBasis',basis)}catch(e){};renderDash()});
   const text=css('--text-2'),grid=css('--line'),surface=css('--surface');
   Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;Chart.defaults.color=text;
   const tip={backgroundColor:css('--text'),titleColor:surface,bodyColor:surface,padding:8,cornerRadius:6,displayColors:true,boxPadding:4};
@@ -601,7 +601,7 @@ function openMerge(){
   const sc=document.createElement('div');sc.className='scrim mergescrim';sc.onclick=closeMerge;
   const box=document.createElement('div');box.className='mergebox';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Merge items');
   box.innerHTML=`<h3>Merge ${items.length} items</h3>
-    <p>Choose the item to keep. It keeps its own name, group, dates, ${esc(L('project'))}, ${esc(L('task'))} and status, and gets all the time sessions, notes and subitems of the others. The other ${items.length-1} item${items.length===2?' is':'s are'} then removed. A backup of your data is saved first.</p>
+    <p>Choose the item to keep. It keeps its own name, group, ${esc(L('project'))}, ${esc(L('task'))} and status, gets all the time sessions, notes and subitems of the others, and its dates span them all: the earliest start and the latest end. The other ${items.length-1} item${items.length===2?' is':'s are'} then removed. A backup of your data is saved first.</p>
     ${items.map(it=>`<label><input type="radio" name="keep" value="${esc(it.id)}" ${it.id===keep?'checked':''}>
        <span>${esc(it.name)}<small>${esc([it.grp,it.start_date?fmtDay(it.start_date):'',it.project,it.task].filter(Boolean).join(' · '))}</small></span>
        <span class="num">${fmtHM(secs.get(it.id))} · ${nSess(it.id)} session${nSess(it.id)===1?'':'s'}</span></label>`).join('')}

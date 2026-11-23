@@ -66,7 +66,7 @@ DEFAULT_CONFIG = {
         {"name": "Ongoing", "tone": "info"},
         {"name": "Done", "tone": "success"},
     ],
-    "report_basis": "start",            # "start" (monday's dashboard rule) or "logged"
+    "report_basis": "logged",           # "logged" (each session on its own day) or "start" (monday's rule)
     "history_year_from_month": 1,       # first month shown on the previous-year chart (1-12)
 }
 
@@ -181,7 +181,8 @@ def backup_now(con, label):
 
 def merge_items(con, target, sources):
     """Fold ``sources`` into ``target``: sessions, notes, subitems and carried-over time move to
-    the target, which keeps its own fields; the source items are then removed."""
+    the target. It keeps its own name, group, priority, project, task and status, takes the
+    earliest start and the latest end of all the merged items; the source items are removed."""
     sources = [s for s in dict.fromkeys(sources) if s != target]
     if not sources:
         raise ValueError("choose at least one other item to merge")
@@ -201,6 +202,18 @@ def merge_items(con, target, sources):
     con.execute("UPDATE notes SET item_id=? WHERE item_id IN (%s)" % marks, [target] + sources)
     con.execute("UPDATE subitems SET parent=? WHERE parent IN (%s)" % marks, [target] + sources)
     con.execute("UPDATE items SET tracked_offset=tracked_offset+? WHERE id=?", (offset, target))
+    # the merged item spans them all: earliest start, latest end (where an end is set)
+    rows = [dict(r) for r in con.execute(
+        "SELECT start_date,start_hour,end_date,end_hour FROM items WHERE id IN (%s)" % ",".join("?" * (len(sources) + 1)),
+        [target] + sources)]
+    starts = [(r["start_date"], r["start_hour"] or "") for r in rows if r["start_date"]]
+    ends = [(r["end_date"], r["end_hour"] or "") for r in rows if r["end_date"]]
+    if starts:
+        d, h = min(starts)
+        con.execute("UPDATE items SET start_date=?, start_hour=? WHERE id=?", (d, h or None, target))
+    if ends:
+        d, h = max(ends)
+        con.execute("UPDATE items SET end_date=?, end_hour=? WHERE id=?", (d, h or None, target))
     # one timer at a time: if several running sessions ended up here, keep the earliest running
     running = [r[0] for r in con.execute(
         "SELECT id FROM sessions WHERE item_id=? AND end IS NULL ORDER BY start", (target,))]
