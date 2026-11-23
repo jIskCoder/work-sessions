@@ -93,6 +93,59 @@ if ! ours; then
   for _ in $(seq 1 50); do ours && break; sleep 0.2; done
   ours || { alert "The server didn't start. See $REPO/data/app.log"; exit 1; }
 fi
+
+# Bring an already-open Work Sessions tab to the front instead of opening another one.
+# Safari and Chromium-based browsers can be asked over AppleScript (the first time, macOS
+# asks whether "Work Sessions" may control the browser). Otherwise a new tab is opened.
+focus_tab() {
+  local app="$1" script
+  /usr/bin/pgrep -x "$app" >/dev/null 2>&1 || return 1
+  if [ "$app" = "Safari" ]; then
+    script='on run argv
+  set p1 to item 1 of argv
+  set p2 to item 2 of argv
+  tell application "Safari"
+    repeat with w in windows
+      repeat with t in tabs of w
+        set u to URL of t
+        if u is not missing value and (u starts with p1 or u starts with p2) then
+          set current tab of w to t
+          set index of w to 1
+          activate
+          return "ok"
+        end if
+      end repeat
+    end repeat
+  end tell
+  return ""
+end run'
+  else
+    script="on run argv
+  set p1 to item 1 of argv
+  set p2 to item 2 of argv
+  tell application \"$app\"
+    repeat with w in windows
+      set i to 0
+      repeat with t in tabs of w
+        set i to i + 1
+        set u to URL of t
+        if u starts with p1 or u starts with p2 then
+          set active tab index of w to i
+          set index of w to 1
+          activate
+          return \"ok\"
+        end if
+      end repeat
+    end repeat
+  end tell
+  return \"\"
+end run"
+  fi
+  [ "$(/usr/bin/osascript -e "$script" "http://127.0.0.1:$PORT/" "http://localhost:$PORT/" 2>/dev/null)" = "ok" ]
+}
+for browser in "Safari" "Google Chrome" "Microsoft Edge" "Brave Browser" "Chromium" "Vivaldi"; do
+  focus_tab "$browser" && exit 0
+done
 /usr/bin/open "$URL"
 LAUNCHER
 chmod +x "$B/MacOS/launcher"
