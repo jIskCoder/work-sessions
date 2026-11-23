@@ -67,12 +67,19 @@ Build a real app with its own icon that you can keep in the Dock:
 ./macos/make-mac-app.sh          # creates ~/Applications/Work Sessions.app
 ```
 
-To pin it, open `~/Applications` in Finder (**Go → Go to Folder…** → `~/Applications`) and
-drag **Work Sessions** onto the Dock. (It has no running Dock icon to right-click: it opens
-the browser and quits straight away, leaving the server running in the background.)
-Clicking it starts the server in the background (if it isn't already running) and opens
-the board in your browser — no Terminal window. The server keeps running until you log
-out or run `./macos/stop.sh`; its output goes to `data/app.log`. Rebuilding keeps the
+Open it once from `~/Applications` (in Finder, **Go → Go to Folder…** → `~/Applications`),
+then right-click its Dock icon → **Options → Keep in Dock**. It behaves like other apps:
+
+- Opening it starts the server (if it isn't already running) and shows the board in your
+  browser — an already-open Work Sessions tab is brought to the front rather than opening
+  another. No Terminal window.
+- A dot under the Dock icon means it's running; clicking the icon shows the board again.
+- **Quit** (Dock menu or ⌘Q) stops the server. If the server stops some other way
+  (`./macos/stop.sh`, a crash), the app quits by itself within 30 seconds.
+- The first time, macOS asks whether Work Sessions may control your browser — that's what
+  lets it switch to the open tab (Safari and Chromium-based browsers).
+
+Server output goes to `data/app.log`. Rebuilding keeps the
 previous app in `data/previous-builds/` as `*.app.previous` (git-ignored, and not treated
 as an app by macOS — rename it to `Work Sessions.app` to restore it). If you move the
 repo, run the script again.
