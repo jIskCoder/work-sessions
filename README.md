@@ -26,6 +26,10 @@ nothing but Python's standard library. Your data stays in one SQLite file.
   meetings). At the start of each week its previous week's items are copied into the new
   week — same day, time, project and task, not started, no tracked time. Names already in the
   new week aren't duplicated, and each week is filled only once.
+- **Merge items:** tick the checkbox on two or more rows (across groups and tabs), then
+  **Merge…** in the bar at the bottom and choose the item to keep. It gets all the others'
+  timer sessions, notes, subitems and tracked time; the others are removed. A backup of the
+  database is saved to `data/backups/` first.
 - **Item details:** full time log (edit or add sessions by hand), subitems, notes,
   duplicate, delete, plus any extra columns brought in from an import.
 - **Report:** today / week / month totals, hours-by-project donuts for this week,

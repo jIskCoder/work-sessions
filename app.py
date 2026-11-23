@@ -163,6 +163,57 @@ def item_row(con, item_id):
     return dict(r) if r else None
 
 
+def backup_now(con, label):
+    """Snapshot the live database into <data>/backups before a bulk change (never deletes)."""
+    db_file = con.execute("PRAGMA database_list").fetchone()[2]
+    if not db_file:
+        return None
+    bdir = os.path.join(os.path.dirname(db_file), "backups")
+    os.makedirs(bdir, exist_ok=True)
+    target = os.path.join(bdir, "worksessions-before-%s-%s.db" % (label, now().strftime("%Y%m%d-%H%M%S")))
+    dst = sqlite3.connect(target)
+    try:
+        con.backup(dst)
+    finally:
+        dst.close()
+    return target
+
+
+def merge_items(con, target, sources):
+    """Fold ``sources`` into ``target``: sessions, notes, subitems and carried-over time move to
+    the target, which keeps its own fields; the source items are then removed."""
+    sources = [s for s in dict.fromkeys(sources) if s != target]
+    if not sources:
+        raise ValueError("choose at least one other item to merge")
+    t_item = item_row(con, target)
+    if not t_item:
+        raise LookupError("no such item: %s" % target)
+    names = []
+    for sid in sources:
+        r = item_row(con, sid)
+        if not r:
+            raise LookupError("no such item: %s" % sid)
+        names.append(r["name"])
+    marks = ",".join("?" * len(sources))
+    offset = con.execute("SELECT COALESCE(SUM(tracked_offset),0) FROM items WHERE id IN (%s)" % marks,
+                         sources).fetchone()[0]
+    con.execute("UPDATE sessions SET item_id=? WHERE item_id IN (%s)" % marks, [target] + sources)
+    con.execute("UPDATE notes SET item_id=? WHERE item_id IN (%s)" % marks, [target] + sources)
+    con.execute("UPDATE subitems SET parent=? WHERE parent IN (%s)" % marks, [target] + sources)
+    con.execute("UPDATE items SET tracked_offset=tracked_offset+? WHERE id=?", (offset, target))
+    # one timer at a time: if several running sessions ended up here, keep the earliest running
+    running = [r[0] for r in con.execute(
+        "SELECT id FROM sessions WHERE item_id=? AND end IS NULL ORDER BY start", (target,))]
+    if len(running) > 1:
+        con.execute("UPDATE sessions SET end=? WHERE id IN (%s)" % ",".join("?" * (len(running) - 1)),
+                    [iso(now())] + running[1:])
+    con.execute("INSERT INTO notes(item_id,created,body) VALUES (?,?,?)",
+                (target, iso(now()), "Merged in: " + "; ".join(names)))
+    con.execute("DELETE FROM items WHERE id IN (%s)" % marks, sources)
+    con.commit()
+    return item_row(con, target)
+
+
 def new_id(con):
     base = int(now().timestamp() * 1000)
     while con.execute("SELECT 1 FROM items WHERE id=?", ("L%d" % base,)).fetchone():
@@ -347,6 +398,20 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(error.code, {"error": error.message})
         con, cfg = self.con, self.cfg
         with lock:
+            if path == "/api/items/merge":
+                target = str(data.get("target") or "")
+                sources = [str(x) for x in (data.get("sources") or [])]
+                if not target or not sources:
+                    return self.send(400, {"error": "target and sources required"})
+                missing = [i for i in [target] + sources if not item_row(con, i)]
+                if missing:
+                    return self.send(404, {"error": "no such item: %s" % missing[0]})
+                if not [x for x in sources if x != target]:
+                    return self.send(400, {"error": "choose at least one other item to merge"})
+                backup = backup_now(con, "merge")
+                item = merge_items(con, target, sources)
+                return self.send(200, {"item": item, "merged": len(set(sources) - {target}),
+                                       "backup": os.path.basename(backup) if backup else None})
             if path == "/api/items":
                 iid = new_id(con)
                 t = now()
